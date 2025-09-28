@@ -247,7 +247,7 @@ extension ChartVisualizationView {
 
   struct LineChartItem: Identifiable {
     let id = UUID()
-    let xValue: Double
+    let xValue: String  // Use String to preserve actual date/number formatting
     let yValue: Double
   }
 
@@ -279,7 +279,7 @@ extension ChartVisualizationView {
   }
 
   private func aggregateDataForLineChart() -> [LineChartItem] {
-    // For line charts, we want to show progression over X-axis
+    // For line charts, we want to show progression over X-axis using actual values
     var items: [LineChartItem] = []
     
     print("🔍 [LineChart] Processing \(chartData.dataPoints.count) data points")
@@ -290,47 +290,21 @@ extension ChartVisualizationView {
         continue 
       }
 
-      // Handle different x-axis data types properly
-      let xValue: Double
-      switch point.x {
-      case .date(let date):
-        // For dates, use a more reasonable scale (days since 2020-01-01)
-        let referenceDate = Date(timeIntervalSince1970: 1577836800) // 2020-01-01
-        xValue = date.timeIntervalSince(referenceDate) / 86400 // Convert to days
-        print("📅 [LineChart] Point \(index): Date \(date) -> \(xValue) days since 2020-01-01")
-      case .double(let value):
-        xValue = value
-        print("🔢 [LineChart] Point \(index): Double \(value)")
-      case .int(let value):
-        xValue = Double(value)
-        print("🔢 [LineChart] Point \(index): Int \(value) -> \(xValue)")
-      case .string(let str):
-        // Try to parse as number first, then as date
-        if let numValue = Double(str) {
-          xValue = numValue
-          print("🔢 [LineChart] Point \(index): String '\(str)' -> Number \(xValue)")
-        } else if let dateValue = parseDateString(str) {
-          // Use days since 2020-01-01 for consistency
-          let referenceDate = Date(timeIntervalSince1970: 1577836800) // 2020-01-01
-          xValue = dateValue.timeIntervalSince(referenceDate) / 86400
-          print("📅 [LineChart] Point \(index): String '\(str)' -> Date \(dateValue) -> \(xValue) days")
-        } else {
-          // For non-numeric strings, use index as x-value
-          xValue = Double(index)
-          print("⚠️ [LineChart] Point \(index): String '\(str)' -> Index \(xValue)")
-        }
-      }
-      
+      // Use the string representation to preserve actual date/number formatting
+      let xValue = point.x.stringValue
       let yValue = y.doubleValue
+      
+      print("📊 [LineChart] Point \(index): x=\(xValue), y=\(yValue)")
       items.append(LineChartItem(xValue: xValue, yValue: yValue))
     }
 
-    // Sort by X value and limit data points
-    let sorted = items.sorted { $0.xValue < $1.xValue }
+    // Sort by X value for proper line progression
+    let sorted = items.sorted { 
+      // Sort by the string representation for consistent ordering
+      $0.xValue < $1.xValue 
+    }
     
-    print("📊 [LineChart] Sorted data range: x=\(sorted.first?.xValue ?? 0) to \(sorted.last?.xValue ?? 0)")
-
-    // Return all data points for complete visualization
+    print("📊 [LineChart] Sorted data range: x=\(sorted.first?.xValue ?? "nil") to \(sorted.last?.xValue ?? "nil")")
     print("📊 [LineChart] Returning all \(sorted.count) data points")
     return sorted
   }

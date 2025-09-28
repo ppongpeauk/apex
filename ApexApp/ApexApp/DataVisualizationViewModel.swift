@@ -214,6 +214,16 @@ enum ChartValue: Equatable {
         case .date(let date): return DateFormatter.localizedString(from: date, dateStyle: .short, timeStyle: .none)
         }
     }
+    
+    // Return the appropriate plottable value for Swift Charts
+    var plottableValue: Any {
+        switch self {
+        case .string(let value): return value
+        case .double(let value): return value
+        case .int(let value): return value
+        case .date(let date): return date
+        }
+    }
 }
 
 // MARK: - API Models
