@@ -556,6 +556,9 @@ class DataAnalyzer:
 
         except Exception as e:
             print(f"❌ [DataAnalyzer] Error processing full dataset: {e}")
+            print(f"❌ [DataAnalyzer] Exception type: {type(e)}")
+            import traceback
+            print(f"❌ [DataAnalyzer] Traceback: {traceback.format_exc()}")
             # Fallback to sample processing
             return self._process_data_for_chart_fallback(file_path, recommendation)
 
@@ -600,7 +603,10 @@ class DataAnalyzer:
             
             # Limit if specified
             if processing.get("limit"):
-                processed_df = processed_df.head(processing["limit"])
+                limit_value = processing["limit"]
+                print(f"📊 [DataAnalyzer] Applying limit: {limit_value}")
+                processed_df = processed_df.head(limit_value)
+                print(f"📊 [DataAnalyzer] After limit: {len(processed_df)} rows")
             
             # Convert to records for JSON serialization
             return self._clean_for_json(processed_df.to_dict('records'))
