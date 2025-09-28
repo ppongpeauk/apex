@@ -254,6 +254,13 @@ extension ChartVisualizationView {
   private func aggregateDataForBarChart() -> [BarChartItem] {
     // Group by X-axis values and aggregate Y values
     var groupedData: [String: [Double]] = [:]
+    
+    print("🔍 [BarChart] Processing \(chartData.dataPoints.count) data points")
+    
+    // Debug: Show unique countries in the data
+    let uniqueCountries = Set(chartData.dataPoints.map { $0.x.stringValue })
+    print("🔍 [BarChart] Unique countries found: \(uniqueCountries.count)")
+    print("🔍 [BarChart] Countries: \(Array(uniqueCountries).sorted())")
 
     for point in chartData.dataPoints {
       guard let y = point.y else { continue }
@@ -271,11 +278,14 @@ extension ChartVisualizationView {
     let items = groupedData.compactMap { (key, values) -> BarChartItem? in
       guard !values.isEmpty else { return nil }
       let sum = values.reduce(0, +)
+      print("📊 [BarChart] Country \(key): \(values.count) points, total=\(sum)")
       return BarChartItem(label: key, value: sum)
     }
 
     // Sort by value (descending) and return all items
-    return items.sorted { $0.value > $1.value }
+    let sorted = items.sorted { $0.value > $1.value }
+    print("📊 [BarChart] Returning \(sorted.count) countries")
+    return sorted
   }
 
   private func aggregateDataForLineChart() -> [LineChartItem] {
