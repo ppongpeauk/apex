@@ -60,16 +60,16 @@ class DataAnalyzer:
 
     def _analyze_large_csv(self, file_path: str, file_info: Dict) -> Dict[str, Any]:
         """
-        Analyze large CSV files using smart sampling
+        Analyze large CSV files using fixed-row smart sampling (handles any file size)
         """
-        print(f"🎯 [DataAnalyzer] Implementing smart sampling strategy...")
+        print(f"🎯 [DataAnalyzer] Implementing fixed-row smart sampling strategy...")
 
-        # Step 1: Read header and first few rows to understand structure
-        header_df = pd.read_csv(file_path, nrows=100)
-        print(f"📋 [DataAnalyzer] Read header and first 100 rows. Columns: {list(header_df.columns)}")
+        # Step 1: Read header and first 5 rows to understand structure
+        header_df = pd.read_csv(file_path, nrows=5)
+        print(f"📋 [DataAnalyzer] Read header and first 5 rows. Columns: {list(header_df.columns)}")
 
-        # Step 2: Get strategic samples from different parts of the file
-        samples = self._get_strategic_samples(file_path, file_info)
+        # Step 2: Get strategic samples using fixed row counts
+        samples = self._get_fixed_row_samples(file_path, file_info)
 
         # Step 3: Combine samples for analysis
         combined_df = pd.concat([header_df] + samples, ignore_index=True).drop_duplicates()
@@ -105,50 +105,57 @@ class DataAnalyzer:
         }
         return clean_data
 
-    def _get_strategic_samples(self, file_path: str, file_info: Dict) -> List[pd.DataFrame]:
+    def _get_fixed_row_samples(self, file_path: str, file_info: Dict) -> List[pd.DataFrame]:
         """
-        Get strategic samples optimized for different data types including time series
+        Get strategic samples using fixed row counts - handles any file size efficiently
         """
         samples = []
-        sample_size = 500  # Sample size for each section
+        total_rows = file_info['rows']
+        
+        print(f"📍 [DataAnalyzer] Using fixed-row sampling for {total_rows:,} total rows")
 
         try:
-            # Total lines estimate
-            total_rows = file_info['rows']
-
-            # For time series data, we need better temporal distribution
-            # Sample at regular intervals throughout the file
-            num_samples = min(5, max(3, total_rows // 10000))  # 3-5 samples depending on size
-            interval = total_rows // (num_samples + 1)
-
-            print(f"📍 [DataAnalyzer] Using {num_samples} strategically spaced samples")
-
-            for i in range(1, num_samples + 1):
+            # 1. Last 5 rows (if file has more than 10 rows)
+            if total_rows > 10:
                 try:
-                    skip_rows = min(total_rows - sample_size - 1, i * interval)
-                    if skip_rows > 0:
-                        sample_df = pd.read_csv(file_path, skiprows=range(1, skip_rows + 1), nrows=sample_size)
-                        if not sample_df.empty:
-                            samples.append(sample_df)
-                            print(f"📍 [DataAnalyzer] Sampled {len(sample_df)} rows from position {skip_rows:,}")
-                except Exception as sample_error:
-                    print(f"⚠️ [DataAnalyzer] Failed to get sample {i}: {sample_error}")
-                    continue
+                    last_skip = max(0, total_rows - 5)
+                    last_df = pd.read_csv(file_path, skiprows=range(1, last_skip + 1), nrows=5)
+                    if not last_df.empty:
+                        samples.append(last_df)
+                        print(f"📍 [DataAnalyzer] Sampled last 5 rows")
+                except Exception as e:
+                    print(f"⚠️ [DataAnalyzer] Failed to get last 5 rows: {e}")
 
-            # Always try to get a sample from the end for completeness
-            if total_rows > 2000:
+            # 2. Random samples from middle sections (10 rows total)
+            if total_rows > 20:
                 try:
-                    end_skip = max(0, total_rows - sample_size - 100)
-                    end_df = pd.read_csv(file_path, skiprows=range(1, end_skip + 1), nrows=sample_size)
-                    if not end_df.empty:
-                        samples.append(end_df)
-                        print(f"📍 [DataAnalyzer] Sampled {len(end_df)} rows from end")
-                except Exception as end_error:
-                    print(f"⚠️ [DataAnalyzer] Failed to get end sample: {end_error}")
+                    # Get 2 random samples of 5 rows each from different middle sections
+                    middle_start = total_rows // 3
+                    middle_end = 2 * total_rows // 3
+                    
+                    # First random sample from first third of middle
+                    random_pos1 = middle_start + (middle_end - middle_start) // 3
+                    if random_pos1 > 0:
+                        random_df1 = pd.read_csv(file_path, skiprows=range(1, random_pos1 + 1), nrows=5)
+                        if not random_df1.empty:
+                            samples.append(random_df1)
+                            print(f"📍 [DataAnalyzer] Sampled 5 random rows from position {random_pos1:,}")
+                    
+                    # Second random sample from second third of middle
+                    random_pos2 = middle_start + 2 * (middle_end - middle_start) // 3
+                    if random_pos2 > 0:
+                        random_df2 = pd.read_csv(file_path, skiprows=range(1, random_pos2 + 1), nrows=5)
+                        if not random_df2.empty:
+                            samples.append(random_df2)
+                            print(f"📍 [DataAnalyzer] Sampled 5 random rows from position {random_pos2:,}")
+                            
+                except Exception as e:
+                    print(f"⚠️ [DataAnalyzer] Failed to get random samples: {e}")
 
         except Exception as e:
-            print(f"⚠️ [DataAnalyzer] Could not get strategic samples: {e}")
+            print(f"⚠️ [DataAnalyzer] Could not get fixed-row samples: {e}")
 
+        print(f"📍 [DataAnalyzer] Total samples collected: {len(samples)}")
         return samples
 
     def _analyze_small_csv(self, file_path: str) -> Dict[str, Any]:
@@ -365,9 +372,9 @@ class DataAnalyzer:
         
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",
                 messages=[
-                    {"role": "system", "content": "You are a data visualization expert. Respond only with valid JSON."},
+                    {"role": "system", "content": "You are an expert data visualization analyst with deep understanding of data patterns, chart selection, and user intent. You excel at identifying the most insightful visualizations from data samples. Respond only with valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1
