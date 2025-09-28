@@ -37,7 +37,7 @@ struct ChartVisualizationView: View {
       .frame(maxHeight: 400)
 
       // Scroll position indicator
-      if chartData.dataPoints.count > 20 {
+      if getDisplayedDataPointCount() > 20 {
         scrollPositionIndicator
             }
             
@@ -175,7 +175,7 @@ struct ChartVisualizationView: View {
         .font(.caption)
         .foregroundColor(.secondary)
       Spacer()
-      Text("\(chartData.dataPoints.count) total points")
+      Text("\(getDisplayedDataPointCount()) displayed points")
         .font(.caption)
         .foregroundColor(.secondary)
     }
@@ -217,18 +217,47 @@ extension ChartVisualizationView {
     return Array(Set(array))
   }
   
-  // Calculate optimal chart width based on data characteristics
+  // Calculate optimal chart width based on actual displayed data points
   private func calculateOptimalChartWidth() -> CGFloat {
-    let dataPointCount = chartData.dataPoints.count
+    let displayedDataPointCount = getDisplayedDataPointCount()
     let baseWidth: CGFloat = 600
     
     // For bar charts, we need more space per data point
     if chartData.chartType == "bar" {
-      return max(baseWidth, CGFloat(dataPointCount) * 60)
+      return max(baseWidth, CGFloat(displayedDataPointCount) * 60)
     }
     
     // For line charts, we can be more compact
-    return max(baseWidth, CGFloat(dataPointCount) * 40)
+    return max(baseWidth, CGFloat(displayedDataPointCount) * 40)
+  }
+  
+  // Get the actual number of data points that will be displayed after aggregation
+  private func getDisplayedDataPointCount() -> Int {
+    switch chartData.chartType {
+    case "bar":
+      // For bar charts, count unique X-axis values after aggregation
+      let uniqueXValues = Set(chartData.dataPoints.map { $0.x.stringValue })
+      return uniqueXValues.count
+      
+    case "line":
+      // For line charts, check if data is categorical or temporal
+      let uniqueXValues = Set(chartData.dataPoints.map { $0.x.stringValue })
+      let isCategoricalData = uniqueXValues.count < Int(Double(chartData.dataPoints.count) * 0.5)
+      
+      if isCategoricalData {
+        // For categorical data, count unique X-axis values (aggregated)
+        return uniqueXValues.count
+      } else {
+        // For temporal data, use all data points
+        return chartData.dataPoints.count
+      }
+      
+    default:
+      // Default to line chart behavior
+      let uniqueXValues = Set(chartData.dataPoints.map { $0.x.stringValue })
+      let isCategoricalData = uniqueXValues.count < Int(Double(chartData.dataPoints.count) * 0.5)
+      return isCategoricalData ? uniqueXValues.count : chartData.dataPoints.count
+    }
   }
 
   // MARK: - Data Processing

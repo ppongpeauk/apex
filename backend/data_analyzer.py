@@ -531,8 +531,24 @@ class DataAnalyzer:
             if processing.get("sort_by") and processing["sort_by"] in processed_df.columns:
                 processed_df = processed_df.sort_values(processing["sort_by"])
 
-            # No limits - show all data
-            print(f"📊 [DataAnalyzer] Processing all {len(processed_df):,} rows without limits")
+            # Apply reasonable limit for frontend performance
+            max_reasonable_points = 10000  # Reasonable for frontend performance
+            if len(processed_df) > max_reasonable_points:
+                print(f"📊 [DataAnalyzer] Limiting to {max_reasonable_points:,} points for frontend performance (from {len(processed_df):,})")
+                # For categorical data, take top items by value
+                if processing.get("group_by"):
+                    # Sort by the y-axis column and take top items
+                    y_col = recommendation.get("y_axis")
+                    if y_col and y_col in processed_df.columns:
+                        processed_df = processed_df.nlargest(max_reasonable_points, y_col)
+                    else:
+                        processed_df = processed_df.head(max_reasonable_points)
+                else:
+                    # For time series, sample evenly
+                    step = len(processed_df) // max_reasonable_points
+                    processed_df = processed_df.iloc[::step]
+            else:
+                print(f"📊 [DataAnalyzer] Processing all {len(processed_df):,} rows (within reasonable limit)")
 
             print(f"📊 [DataAnalyzer] Final processed dataset: {len(processed_df):,} rows")
 
