@@ -18,17 +18,35 @@ struct ChartVisualizationView: View {
       // Chart content with horizontal scrolling
       ScrollView(.horizontal, showsIndicators: true) {
             Group {
-                switch chartData.chartType {
-          case "bar":
-            barChartView
-                case "line":
-                    lineChartView
-                case "scatter":
-                    scatterChartView
-                case "pie":
-                    pieChartView
-                default:
-            lineChartView  // Default to line chart
+                if chartData.dataPoints.isEmpty {
+                    // Show message for empty data
+                    VStack(spacing: 16) {
+                        Image(systemName: "chart.bar.doc.horizontal")
+                            .font(.system(size: 48))
+                            .foregroundColor(.secondary)
+                        Text("No data to display")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                        Text("Try selecting different columns or uploading new data")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(minHeight: 300)
+                } else {
+                    switch chartData.chartType {
+              case "bar":
+                barChartView
+                    case "line":
+                        lineChartView
+                    case "scatter":
+                        scatterChartView
+                    case "pie":
+                        pieChartView
+                    default:
+                lineChartView  // Default to line chart
+                    }
                 }
             }
             .onAppear {
@@ -65,8 +83,17 @@ struct ChartVisualizationView: View {
       print("📊 [LineChart] X range: \(first.xValue) to \(last.xValue)")
       print("📊 [LineChart] Y range: \(first.yValue) to \(last.yValue)")
     }
+    
+    // Handle empty data case
+    guard !processedData.isEmpty else {
+      return AnyView(
+        Text("No data available for line chart")
+          .foregroundColor(.secondary)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      )
+    }
 
-    return Chart(processedData, id: \.id) { item in
+    return AnyView(Chart(processedData, id: \.id) { item in
                     LineMark(
         x: .value(xLabel, item.xValue),
         y: .value(yLabel, item.yValue)
@@ -90,7 +117,7 @@ struct ChartVisualizationView: View {
           .font(.caption2)
         AxisGridLine()
       }
-    }
+    })
     }
     
     // MARK: - Bar Chart
@@ -111,7 +138,16 @@ struct ChartVisualizationView: View {
     let xLabel: String = chartData.xLabel ?? "X"
     let yLabel: String = chartData.yLabel ?? "Y"
     
-    return Chart(processedData, id: \.id) { item in
+    // Handle empty data case
+    guard !processedData.isEmpty else {
+      return AnyView(
+        Text("No data available for bar chart")
+          .foregroundColor(.secondary)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      )
+    }
+    
+    return AnyView(Chart(processedData, id: \.id) { item in
                     BarMark(
         x: .value(xLabel, item.label),
         y: .value(yLabel, item.value)
@@ -130,7 +166,7 @@ struct ChartVisualizationView: View {
             AxisMarks { _ in
                 AxisValueLabel()
       }
-    }
+    })
   }
 
   private func stackedBarChartView(_ processedData: [StackedBarChartItem]) -> some View {
@@ -185,26 +221,36 @@ struct ChartVisualizationView: View {
       print("📊 [ScatterChart] Y range: \(first.yValue) to \(last.yValue)")
     }
 
-    return Chart(processedData, id: \.id) { item in
-      PointMark(
-        x: .value(xLabel, item.xValue),
-        y: .value(yLabel, item.yValue)
+    if processedData.isEmpty {
+      return AnyView(
+        Text("No data available for scatter plot")
+          .foregroundColor(.secondary)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
       )
-      .foregroundStyle(.blue)
-      .symbolSize(50)
     }
-    .chartXAxisLabel(xLabel)
-    .chartYAxisLabel(yLabel)
-    .chartXAxis {
-      AxisMarks { _ in
-        AxisValueLabel()
+
+    return AnyView(
+      Chart(processedData, id: \.id) { item in
+        PointMark(
+          x: .value(xLabel, item.xValue),
+          y: .value(yLabel, item.yValue)
+        )
+        .foregroundStyle(.blue)
+        .symbolSize(50)
       }
-    }
-    .chartYAxis {
-      AxisMarks { _ in
-        AxisValueLabel()
+      .chartXAxisLabel(xLabel)
+      .chartYAxisLabel(yLabel)
+      .chartXAxis {
+        AxisMarks { _ in
+          AxisValueLabel()
+        }
       }
-    }
+      .chartYAxis {
+        AxisMarks { _ in
+          AxisValueLabel()
+        }
+      }
+    )
   }
 
   // MARK: - Pie Chart
@@ -214,8 +260,17 @@ struct ChartVisualizationView: View {
     let yLabel: String = chartData.yLabel ?? "Value"
 
     print("📊 [PieChart] Rendering chart with \(processedData.count) segments")
+    
+    // Handle empty data case
+    guard !processedData.isEmpty else {
+      return AnyView(
+        Text("No data available for pie chart")
+          .foregroundColor(.secondary)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      )
+    }
 
-    return Chart(processedData, id: \.id) { item in
+    return AnyView(Chart(processedData, id: \.id) { item in
       SectorMark(
         angle: .value(yLabel, item.value),
         innerRadius: .ratio(0.2),
@@ -225,7 +280,7 @@ struct ChartVisualizationView: View {
     }
     .chartLegend(position: .bottom, alignment: .center)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .frame(width: 400, height: 400)
+    .frame(width: 400, height: 400))
   }
 
   // MARK: - Scroll Position Indicator

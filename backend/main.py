@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 import uvicorn
 import tempfile
 import os
@@ -30,6 +31,7 @@ class ChatHistoryItem(BaseModel):
 class ChatMessage(BaseModel):
     message: str
     history: list[ChatHistoryItem] = []
+    current_data: Optional[dict] = None
 
 
 @app.get("/")
@@ -182,14 +184,22 @@ def get_supported_chart_types():
 @app.post("/chat")
 async def chat_endpoint(chat_message: ChatMessage):
     """
-    Handle chat messages and return OpenAI responses with chart detection
+    Handle chat messages and return OpenAI responses with intelligent chart detection
     """
     print(f"💬 [Backend] Received chat message: {chat_message.message}")
 
     try:
-        # Use the analyzer's enhanced chat method with chart detection
+        # Extract current data context if provided
+        current_data = None
+        if hasattr(chat_message, 'current_data') and chat_message.current_data:
+            current_data = chat_message.current_data
+            print(f"📊 [Backend] Using current data context with {len(current_data.get('columns', []))} columns")
+        
+        # Use the analyzer's enhanced chat method with intelligent chart detection
         response_data = analyzer.send_chat_message_with_chart_detection(
-            chat_message.message, chat_message.history
+            chat_message.message, 
+            chat_message.history,
+            current_data
         )
         print(f"✅ [Backend] Chat response generated successfully")
 

@@ -158,7 +158,7 @@ class APIService {
         return false
     }
 
-    func sendChatMessage(_ message: String, history: [[String: String]] = []) async throws -> ChatResponse {
+    func sendChatMessage(_ message: String, history: [[String: String]] = [], currentData: [String: Any]? = nil) async throws -> ChatResponse {
         print("💬 [APIService] Sending chat message: \(message)")
 
         let urls = [
@@ -170,7 +170,7 @@ class APIService {
             print("📡 [APIService] Chat attempt \(index + 1)/\(urls.count) to: \(url)")
 
             do {
-                return try await performChatRequest(message: message, history: history, targetURL: url)
+                return try await performChatRequest(message: message, history: history, currentData: currentData, targetURL: url)
             } catch {
                 print("❌ [APIService] Chat attempt \(index + 1) failed: \(error)")
                 if index == urls.count - 1 {
@@ -183,13 +183,16 @@ class APIService {
         throw APIError.networkError(NSError(domain: "APIService", code: -1, userInfo: [NSLocalizedDescriptionKey: "All chat attempts failed"]))
     }
 
-    private func performChatRequest(message: String, history: [[String: String]] = [], targetURL: URL) async throws -> ChatResponse {
+    private func performChatRequest(message: String, history: [[String: String]] = [], currentData: [String: Any]? = nil, targetURL: URL) async throws -> ChatResponse {
         var request = URLRequest(url: targetURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 30.0
 
-        let requestBody: [String: Any] = ["message": message, "history": history]
+        var requestBody: [String: Any] = ["message": message, "history": history]
+        if let currentData = currentData {
+            requestBody["current_data"] = currentData
+        }
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
         print("🌐 [APIService] Sending chat request...")
@@ -212,16 +215,27 @@ class APIService {
         if let jsonResponse = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let responseMessage = jsonResponse["response"] as? String {
             print("✅ [APIService] Received chat response")
-            
-            // Parse chart change if present
+
             var chartChange: ChartChange? = nil
             if let chartChangeData = jsonResponse["chart_change"] as? [String: Any],
-               let chartType = chartChangeData["chart_type"] as? String,
-               let reason = chartChangeData["reason"] as? String {
-                chartChange = ChartChange(chartType: chartType, reason: reason)
+               let chartType = chartChangeData["chart_type"] as? String {
+                let reason = chartChangeData["reason"] as? String ?? ""
+                let xAxis = chartChangeData["x_axis"] as? String
+                let yAxis = chartChangeData["y_axis"] as? String
+                let title = chartChangeData["title"] as? String
+                chartChange = ChartChange(
+                    chartType: chartType, 
+                    reason: reason,
+                    xAxis: xAxis,
+                    yAxis: yAxis,
+                    title: title
+                )
                 print("📊 [APIService] Detected chart change: \(chartType)")
+                if let xAxis = xAxis, let yAxis = yAxis {
+                    print("📊 [APIService] With axes: X=\(xAxis), Y=\(yAxis)")
+                }
             }
-            
+
             return ChatResponse(response: responseMessage, chartChange: chartChange)
         }
 
@@ -238,6 +252,9 @@ struct ChatResponse {
 struct ChartChange {
     let chartType: String
     let reason: String
+    let xAxis: String?
+    let yAxis: String?
+    let title: String?
 }
 
 enum APIError: LocalizedError {

@@ -15,6 +15,7 @@ class DataVisualizationViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var chartData: ChartData?
     @Published var errorMessage: String?
+    @Published var chatMessages: [ChatMessage] = []
 
     private let apiService = APIService()
 
@@ -75,6 +76,121 @@ class DataVisualizationViewModel: ObservableObject {
             }
         }
     }
+
+    func addChatMessage(_ message: ChatMessage) {
+        chatMessages.append(message)
+    }
+
+    func appendChatMessage(_ message: ChatMessage) {
+        chatMessages.append(message)
+    }
+
+    func clearChatMessages() {
+        chatMessages.removeAll()
+    }
+
+    func loadInitialChatMessages() {
+        clearChatMessages()
+        if let chartData = chartData {
+            appendChatMessage(ChatMessage(text: chartData.reasoning, isUser: false))
+        }
+    }
+
+    func buildConversationHistory() -> [[String: String]] {
+        let recentMessages = chatMessages.suffix(10)
+        return recentMessages.map { message in
+            [
+                "role": message.isUser ? "user" : "assistant",
+                "content": message.text
+            ]
+        }
+    }
+
+    func buildChatContext() -> [String: Any]? {
+        guard let chartData = chartData else { return nil }
+
+        var context: [String: Any] = [
+            "current_chart": [
+                "type": chartData.chartType,
+                "title": chartData.title,
+                "x_axis": chartData.xLabel ?? "",
+                "y_axis": chartData.yLabel ?? "",
+                "x_axis_key": chartData.xAxisKey ?? "",
+                "y_axis_key": chartData.yAxisKey ?? ""
+            ]
+        ]
+        
+        // Add column information
+        if let columns = chartData.originalData["columns"] as? [String] {
+            context["columns"] = columns
+        }
+        
+        // Add data shape information
+        if let shape = chartData.originalData["shape"] as? [Int] {
+            context["shape"] = shape
+        }
+        
+        // Add numeric and categorical column info if available
+        if let numericColumns = chartData.originalData["numeric_columns"] as? [String] {
+            context["numeric_columns"] = numericColumns
+        }
+        
+        if let categoricalColumns = chartData.originalData["categorical_columns"] as? [String] {
+            context["categorical_columns"] = categoricalColumns
+        }
+
+        // Add sample data for context
+        if let processed = chartData.originalData["processed_data"] as? [[String: AnyCodable]] {
+            context["data_sample"] = processed.prefix(5).map { row in
+                row.reduce(into: [String: Any]()) { result, entry in
+                    result[entry.key] = entry.value.value
+                }
+            }
+        } else if let processed = chartData.originalData["processed_data"] as? [[String: Any]] {
+            context["data_sample"] = Array(processed.prefix(5))
+        }
+
+        return context
+    }
+
+    func applyChartChange(_ chartChange: ChartChange) {
+        guard let currentChartData = chartData else { return }
+
+        // Use provided axes or keep current ones
+        let newXAxis = chartChange.xAxis ?? currentChartData.xAxisKey
+        let newYAxis = chartChange.yAxis ?? currentChartData.yAxisKey
+        let newTitle = chartChange.title ?? currentChartData.title
+        
+        // If axes changed, recreate data points with new axes
+        var newDataPoints = currentChartData.dataPoints
+        if newXAxis != currentChartData.xAxisKey || newYAxis != currentChartData.yAxisKey {
+            if let rawData = currentChartData.originalData["raw_data"] as? [[String: AnyCodable]] {
+                newDataPoints = rawData.compactMap { dict in
+                    let convertedDict = dict.reduce(into: [String: Any]()) { result, entry in
+                        result[entry.key] = entry.value.value
+                    }
+                    return DataPoint(from: convertedDict, xKey: newXAxis, yKey: newYAxis, zKey: nil)
+                }
+            }
+        }
+
+        chartData = ChartData(
+            chartType: chartChange.chartType,
+            title: newTitle,
+            xLabel: chartChange.xAxis ?? currentChartData.xLabel,
+            yLabel: chartChange.yAxis ?? currentChartData.yLabel,
+            reasoning: chartChange.reason,
+            dataPoints: newDataPoints,
+            originalData: currentChartData.originalData,
+            xAxisKey: newXAxis,
+            yAxisKey: newYAxis,
+            zAxisKey: currentChartData.zAxisKey
+        )
+        
+        // Add a message about the chart change
+        let changeMessage = "I've updated the visualization to a \(chartChange.chartType) chart. \(chartChange.reason)"
+        appendChatMessage(ChatMessage(text: changeMessage, isUser: false))
+    }
 }
 
 // MARK: - Data Models
@@ -86,6 +202,9 @@ struct ChartData: Equatable {
     let reasoning: String
     let dataPoints: [DataPoint]
     let originalData: [String: Any]
+    var xAxisKey: String?
+    var yAxisKey: String?
+    var zAxisKey: String?
     
     // Custom equality implementation to handle [String: Any]
     static func == (lhs: ChartData, rhs: ChartData) -> Bool {
@@ -104,6 +223,9 @@ struct ChartData: Equatable {
         self.xLabel = apiResponse.analysis.recommendation.xLabel
         self.yLabel = apiResponse.analysis.recommendation.yLabel
         self.reasoning = apiResponse.analysis.recommendation.reasoning
+        self.xAxisKey = apiResponse.analysis.recommendation.xAxis
+        self.yAxisKey = apiResponse.analysis.recommendation.yAxis
+        self.zAxisKey = apiResponse.analysis.recommendation.zAxis
 
         // Convert processed data to chart-friendly format
         self.dataPoints = Self.createDataPoints(
@@ -117,7 +239,10 @@ struct ChartData: Equatable {
             "filename": apiResponse.filename,
             "shape": apiResponse.analysis.dataInfo.shape,
             "columns": apiResponse.analysis.dataInfo.columns,
-            "raw_data": apiResponse.analysis.rawData
+            "processed_data": apiResponse.analysis.processedData,
+            "raw_data": apiResponse.analysis.rawData,
+            "x_axis_key": apiResponse.analysis.recommendation.xAxis ?? "",
+            "y_axis_key": apiResponse.analysis.recommendation.yAxis ?? ""
         ]
     }
 
@@ -224,7 +349,10 @@ struct ChartData: Equatable {
         yLabel: String?,
         reasoning: String,
         dataPoints: [DataPoint],
-        originalData: [String: Any]
+        originalData: [String: Any],
+        xAxisKey: String?,
+        yAxisKey: String?,
+        zAxisKey: String?
     ) {
         self.chartType = chartType
         self.title = title
@@ -233,6 +361,12 @@ struct ChartData: Equatable {
         self.reasoning = reasoning
         self.dataPoints = dataPoints
         self.originalData = originalData
+        self.xAxisKey = xAxisKey
+        self.yAxisKey = yAxisKey
+        self.zAxisKey = zAxisKey
+        self.xAxisKey = xAxisKey
+        self.yAxisKey = yAxisKey
+        self.zAxisKey = zAxisKey
     }
 }
 

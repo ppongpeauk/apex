@@ -19,6 +19,13 @@ struct ContentView: View {
   @State private var selectedYAxis: String = ""
   @State private var availableColumns: [String] = []
   @State private var isSidebarCollapsed: Bool = false
+  
+  // Additional state variables for chart management
+  @State private var columnOptions: [ColumnOption] = []
+  @State private var selectedXAxisKey: String = ""
+  @State private var selectedYAxisKey: String = ""
+  @State private var selectedXAxisDisplay: String = ""
+  @State private var selectedYAxisDisplay: String = ""
 
   var body: some View {
     if viewModel.chartData != nil {
@@ -36,6 +43,12 @@ struct ContentView: View {
             chartView(chartData)
               .onAppear {
                 initializeChartControls(chartData)
+                syncChartStates(with: chartData)
+              }
+              .onChange(of: viewModel.chartData) { newData in
+                if let newData = newData {
+                  syncChartStates(with: newData)
+                }
               }
           }
         }
@@ -225,7 +238,7 @@ struct ContentView: View {
           // Chart visualization
           ChartVisualizationView(chartData: data)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .id("\(data.chartType)-\(data.xLabel ?? "")-\(data.yLabel ?? "")")
+            .id("\(data.chartType)-\(selectedChartType)-\(data.xLabel ?? "")-\(data.yLabel ?? "")-\(selectedXAxis)-\(selectedYAxis)")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal)
@@ -280,9 +293,23 @@ struct ContentView: View {
       LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
         ForEach(chartTypes, id: \.self) { chartType in
           Button(action: {
+            print("🎯 [ContentView] Switching to chart type: \(chartType)")
             selectedChartType = chartType
+            
+            // Ensure we have valid axis key selections before updating
+            if selectedXAxisKey.isEmpty, let currentData = viewModel.chartData {
+              selectedXAxisKey = currentData.xAxisKey ?? ""
+              selectedXAxisDisplay = currentData.xLabel ?? ""
+              print("   - Using existing X axis key: \(selectedXAxisKey)")
+            }
+            if selectedYAxisKey.isEmpty, let currentData = viewModel.chartData {
+              selectedYAxisKey = currentData.yAxisKey ?? ""
+              selectedYAxisDisplay = currentData.yLabel ?? ""
+              print("   - Using existing Y axis key: \(selectedYAxisKey)")
+            }
+            
             updateChart()
-            print("Selected chart type: \(chartType)")
+            print("✅ [ContentView] Chart type switched to: \(chartType)")
           }) {
             VStack(spacing: 4) {
               Image(systemName: chartTypeIcon(chartType))
@@ -321,16 +348,18 @@ struct ContentView: View {
           .foregroundColor(.secondary)
 
         Menu {
-          ForEach(availableColumns, id: \.self) { column in
-            Button(column) {
-              selectedXAxis = column
+          ForEach(columnOptions, id: \.column) { option in
+            Button(option.displayName) {
+              print("🎯 [ContentView] Switching X-axis to: \(option.column)")
+              selectedXAxisKey = option.column
+              selectedXAxisDisplay = option.displayName
               updateChart()
-              print("Selected X-axis: \(column)")
+              print("✅ [ContentView] X-axis switched to: \(option.column)")
             }
           }
         } label: {
           HStack {
-            Text(selectedXAxis.isEmpty ? "Select Column" : selectedXAxis)
+            Text(selectedXAxisDisplay.isEmpty ? "Select Column" : selectedXAxisDisplay)
               .foregroundColor(.primary)
             Spacer()
             Image(systemName: "chevron.down")
@@ -355,16 +384,18 @@ struct ContentView: View {
           .foregroundColor(.secondary)
 
         Menu {
-          ForEach(availableColumns, id: \.self) { column in
-            Button(column) {
-              selectedYAxis = column
+          ForEach(columnOptions, id: \.column) { option in
+            Button(option.displayName) {
+              print("🎯 [ContentView] Switching Y-axis to: \(option.column)")
+              selectedYAxisKey = option.column
+              selectedYAxisDisplay = option.displayName
               updateChart()
-              print("Selected Y-axis: \(column)")
+              print("✅ [ContentView] Y-axis switched to: \(option.column)")
             }
           }
         } label: {
           HStack {
-            Text(selectedYAxis.isEmpty ? "Select Column" : selectedYAxis)
+            Text(selectedYAxisDisplay.isEmpty ? "Select Column" : selectedYAxisDisplay)
               .foregroundColor(.primary)
             Spacer()
             Image(systemName: "chevron.down")
@@ -424,22 +455,15 @@ struct ContentView: View {
   }
 
   private func getAvailableColumns(_ data: ChartData) -> [String] {
-    // Extract columns from original data
-    if let originalData = data.originalData as? [String: Any],
-      let columns = originalData["columns"] as? [String]
-    {
-      return columns
-    }
-    // Fallback: get unique keys from data points
-    return Array(Set(data.dataPoints.flatMap { _ in ["Month", "Sales", "Region", "Product"] }))
+    return buildColumnOptions(data).map { $0.column }
   }
 
   private func getXAxisSelection(_ data: ChartData) -> String {
-    return data.xLabel ?? "Select Column"
+    return displayName(for: data.xAxisKey, defaultLabel: data.xLabel)
   }
 
   private func getYAxisSelection(_ data: ChartData) -> String {
-    return data.yLabel ?? "Select Column"
+    return displayName(for: data.yAxisKey, defaultLabel: data.yLabel)
   }
 
   private func formatNumber(_ number: Int) -> String {
@@ -451,11 +475,31 @@ struct ContentView: View {
   private func initializeChartControls(_ data: ChartData) {
     // Initialize available columns
     availableColumns = getAvailableColumns(data)
+    columnOptions = buildColumnOptions(data)
 
-    // Initialize selections from current chart data
+    // Initialize selections from current chart data - prioritize keys
     selectedChartType = data.chartType
-    selectedXAxis = data.xLabel ?? ""
-    selectedYAxis = data.yLabel ?? ""
+    selectedXAxisKey = data.xAxisKey ?? ""
+    selectedYAxisKey = data.yAxisKey ?? ""
+    selectedXAxisDisplay = data.xLabel ?? ""
+    selectedYAxisDisplay = data.yLabel ?? ""
+    selectedXAxis = data.xLabel ?? ""  // Keep for backward compatibility
+    selectedYAxis = data.yLabel ?? ""  // Keep for backward compatibility
+    
+    print("🔧 [ContentView] Initialized chart controls:")
+    print("   - Chart Type: \(selectedChartType)")
+    print("   - Data points: \(data.dataPoints.count)")
+    print("   - X Axis Key: '\(selectedXAxisKey)' (display: '\(selectedXAxisDisplay)')")
+    print("   - Y Axis Key: '\(selectedYAxisKey)' (display: '\(selectedYAxisDisplay)')")
+    print("   - Available Columns: \(availableColumns)")
+    
+    // Debug: Check if keys exist in columns
+    if !availableColumns.isEmpty {
+      let xKeyExists = availableColumns.contains(selectedXAxisKey)
+      let yKeyExists = availableColumns.contains(selectedYAxisKey)
+      print("   - X Key '\(selectedXAxisKey)' exists in columns: \(xKeyExists)")
+      print("   - Y Key '\(selectedYAxisKey)' exists in columns: \(yKeyExists)")
+    }
   }
 
   private func updateChart() {
@@ -465,36 +509,51 @@ struct ContentView: View {
       return
     }
 
-    print(
-      "🔄 [ContentView] Updating chart: \(selectedChartType) with X:\(selectedXAxis) Y:\(selectedYAxis)"
-    )
+    print("🔄 [ContentView] Updating chart: \(selectedChartType) with X:\(selectedXAxisKey) Y:\(selectedYAxisKey)")
 
-    // Create updated chart data with new selections
+    // Use the actual column keys, not display names
+    let xAxisKeyToUse = selectedXAxisKey.isEmpty ? (currentData.xAxisKey ?? "") : selectedXAxisKey
+    let yAxisKeyToUse = selectedYAxisKey.isEmpty ? (currentData.yAxisKey ?? "") : selectedYAxisKey
+    
+    // Validate that we have the necessary data for the selected chart type
+    if !validateChartTypeCompatibility(chartType: selectedChartType, xAxis: xAxisKeyToUse, yAxis: yAxisKeyToUse, data: currentData) {
+      print("⚠️ [ContentView] Chart type \(selectedChartType) not compatible with current data, using fallback")
+      // Don't return here, let the chart try to render with fallback logic
+    }
+
+    // Create updated chart data with new selections using actual column keys
     let updatedData = createUpdatedChartData(
       originalData: currentData,
       chartType: selectedChartType,
-      xAxis: selectedXAxis,
-      yAxis: selectedYAxis
+      xAxisKey: xAxisKeyToUse,
+      yAxisKey: yAxisKeyToUse,
+      xAxisDisplay: selectedXAxisDisplay,
+      yAxisDisplay: selectedYAxisDisplay
     )
 
     print("✅ [ContentView] Created updated chart data with \(updatedData.dataPoints.count) points")
 
-    // Update the view model
-    viewModel.chartData = updatedData
+    // Update the view model - this should trigger a re-render
+    DispatchQueue.main.async {
+      self.viewModel.chartData = updatedData
+    }
   }
 
   private func createUpdatedChartData(
     originalData: ChartData,
     chartType: String,
-    xAxis: String,
-    yAxis: String
+    xAxisKey: String,
+    yAxisKey: String,
+    xAxisDisplay: String = "",
+    yAxisDisplay: String = ""
   ) -> ChartData {
-    // Get the raw data from original data and handle AnyCodable properly
+    print("🔨 [ContentView] Creating chart data with xKey: '\(xAxisKey)', yKey: '\(yAxisKey)'")
+    
+    // Get the raw data from original data - prefer raw_data over processed_data for full dataset
     let rawDataPoints: [[String: Any]]
 
     if let rawData = originalData.originalData["raw_data"] as? [[String: AnyCodable]] {
-      print("🔍 [ContentView] Found AnyCodable raw data with \(rawData.count) rows")
-      // Convert AnyCodable to regular values
+      print("📊 [ContentView] Using raw_data with \(rawData.count) rows")
       rawDataPoints = rawData.map { dict in
         var convertedDict: [String: Any] = [:]
         for (key, anyCodable) in dict {
@@ -502,61 +561,78 @@ struct ContentView: View {
         }
         return convertedDict
       }
-      print("🔍 [ContentView] Converted to regular data with \(rawDataPoints.count) rows")
     } else if let rawData = originalData.originalData["raw_data"] as? [[String: Any]] {
+      print("📊 [ContentView] Using raw_data (non-AnyCodable) with \(rawData.count) rows")
       rawDataPoints = rawData
+    } else if let processedData = originalData.originalData["processed_data"] as? [[String: AnyCodable]] {
+      print("📊 [ContentView] Falling back to processed_data with \(processedData.count) rows")
+      rawDataPoints = processedData.map { dict in
+        var convertedDict: [String: Any] = [:]
+        for (key, anyCodable) in dict {
+          convertedDict[key] = anyCodable.value
+        }
+        return convertedDict
+      }
+    } else if let processedData = originalData.originalData["processed_data"] as? [[String: Any]] {
+      print("📊 [ContentView] Falling back to processed_data (non-AnyCodable) with \(processedData.count) rows")
+      rawDataPoints = processedData
     } else {
-      // Fallback: convert existing data points back to dictionaries
+      print("⚠️ [ContentView] No raw or processed data found, reconstructing from data points")
       rawDataPoints = originalData.dataPoints.compactMap { point -> [String: Any]? in
         var dict: [String: Any] = [:]
 
-        // Add available data from the point
-        if let label = point.label {
-          dict[originalData.xLabel ?? "x"] = label
+        if let key = originalData.xAxisKey {
+          dict[key] = point.x.stringValue
         }
 
-        switch point.x {
-        case .string(let value):
-          dict[originalData.xLabel ?? "x"] = value
-        case .double(let value):
-          dict[originalData.xLabel ?? "x"] = value
-        case .int(let value):
-          dict[originalData.xLabel ?? "x"] = value
-        case .date(let value):
-          dict[originalData.xLabel ?? "x"] = value
-        }
-
-        if let y = point.y {
-          switch y {
-          case .string(let value):
-            dict[originalData.yLabel ?? "y"] = value
-          case .double(let value):
-            dict[originalData.yLabel ?? "y"] = value
-          case .int(let value):
-            dict[originalData.yLabel ?? "y"] = value
-          case .date(let value):
-            dict[originalData.yLabel ?? "y"] = value
-          }
+        if let key = originalData.yAxisKey,
+           let yVal = point.y {
+          dict[key] = yVal.stringValue
         }
 
         return dict
       }
     }
 
+    print("📊 [ContentView] Processing \(rawDataPoints.count) raw data points")
+    
+    // Debug: print available columns in first row
+    if let firstRow = rawDataPoints.first {
+      print("📊 [ContentView] Available columns in data: \(firstRow.keys.sorted())")
+    }
+
     // Create new data points with selected axes
     let newDataPoints = rawDataPoints.compactMap { dict -> DataPoint? in
-      return DataPoint(from: dict, xKey: xAxis, yKey: yAxis, zKey: nil)
+      let dataPoint = DataPoint(from: dict, xKey: xAxisKey, yKey: yAxisKey, zKey: originalData.zAxisKey)
+      if dataPoint == nil {
+        // Debug why it failed
+        let hasXKey = dict[xAxisKey] != nil
+        let hasYKey = dict[yAxisKey] != nil
+        if !hasXKey || !hasYKey {
+          print("⚠️ [ContentView] Failed to create DataPoint - xKey '\(xAxisKey)' exists: \(hasXKey), yKey '\(yAxisKey)' exists: \(hasYKey)")
+        }
+      }
+      return dataPoint
     }
+
+    print("✅ [ContentView] Created \(newDataPoints.count) data points from \(rawDataPoints.count) raw records")
+
+    // Use provided display names or fall back to formatted column names
+    let xDisplay = xAxisDisplay.isEmpty ? formatColumnName(xAxisKey) : xAxisDisplay
+    let yDisplay = yAxisDisplay.isEmpty ? formatColumnName(yAxisKey) : yAxisDisplay
 
     // Create updated chart data
     return ChartData(
       chartType: chartType,
-      title: "\(yAxis) by \(xAxis)",
-      xLabel: xAxis,
-      yLabel: yAxis,
+      title: "\(yDisplay) by \(xDisplay)",
+      xLabel: xDisplay,
+      yLabel: yDisplay,
       reasoning: originalData.reasoning, // Preserve original AI reasoning
       dataPoints: newDataPoints,
-      originalData: originalData.originalData
+      originalData: originalData.originalData,
+      xAxisKey: xAxisKey,
+      yAxisKey: yAxisKey,
+      zAxisKey: originalData.zAxisKey
     )
   }
 
@@ -574,5 +650,133 @@ struct ContentView: View {
     }
 
     return true
+  }
+
+  private struct ColumnOption: Hashable {
+    let column: String
+    let displayName: String
+  }
+
+  private func buildColumnOptions(_ data: ChartData) -> [ColumnOption] {
+    // Try to get columns from originalData
+    if let columns = data.originalData["columns"] as? [String] {
+      print("📊 [ContentView] Building column options from columns list: \(columns)")
+      return columns.map { ColumnOption(column: $0, displayName: formatColumnName($0)) }
+    }
+    
+    // Fallback: Extract from raw data
+    if let rawData = data.originalData["raw_data"] as? [[String: AnyCodable]],
+       let firstRow = rawData.first {
+      let columns = Array(firstRow.keys).sorted()
+      print("📊 [ContentView] Building column options from raw data: \(columns)")
+      return columns.map { ColumnOption(column: $0, displayName: formatColumnName($0)) }
+    }
+    
+    if let rawData = data.originalData["raw_data"] as? [[String: Any]],
+       let firstRow = rawData.first {
+      let columns = Array(firstRow.keys).sorted()
+      print("📊 [ContentView] Building column options from raw data (non-AnyCodable): \(columns)")
+      return columns.map { ColumnOption(column: $0, displayName: formatColumnName($0)) }
+    }
+    
+    print("⚠️ [ContentView] Could not build column options")
+    return []
+  }
+
+  private func buildSanitizedChartContext(_ data: ChartData) -> [String: Any] {
+    var context: [String: Any] = [
+      "chart_type": data.chartType,
+      "title": data.title,
+      "x_label": data.xLabel ?? "",
+      "y_label": data.yLabel ?? "",
+      "x_axis_key": data.xAxisKey ?? "",
+      "y_axis_key": data.yAxisKey ?? ""
+    ]
+
+    if let sample = data.originalData["processed_data"] as? [[String: AnyCodable]] {
+      context["data_sample"] = sample.prefix(10).map { row in
+        row.reduce(into: [String: Any]()) { result, entry in
+          result[entry.key] = entry.value.value
+        }
+      }
+    } else if let sample = data.originalData["processed_data"] as? [[String: Any]] {
+      context["data_sample"] = Array(sample.prefix(10))
+    }
+
+    return context
+  }
+
+  private func formatColumnName(_ column: String) -> String {
+    column
+      .replacingOccurrences(of: "_", with: " ")
+      .replacingOccurrences(of: "-", with: " ")
+      .capitalized
+  }
+
+  private func displayName(for key: String?, defaultLabel: String?) -> String {
+    if let key = key,
+       let option = columnOptions.first(where: { $0.column == key }) {
+      return option.displayName
+    }
+    return defaultLabel ?? (key ?? "")
+  }
+  
+  private func validateChartTypeCompatibility(chartType: String, xAxis: String, yAxis: String, data: ChartData) -> Bool {
+    // Basic validation - ensure we have valid axis selections
+    guard !xAxis.isEmpty else {
+      print("⚠️ [ContentView] X-axis is empty for chart type \(chartType)")
+      return false
+    }
+    
+    // For pie charts, we only need X-axis (categories)
+    if chartType == "pie" {
+      return true
+    }
+    
+    // For other charts, we need both X and Y axes
+    guard !yAxis.isEmpty else {
+      print("⚠️ [ContentView] Y-axis is empty for chart type \(chartType)")
+      return false
+    }
+    
+    // Additional validation could be added here for specific chart types
+    // For example, scatter plots work best with numeric data
+    
+    return true
+  }
+  
+  private func syncChartStates(with data: ChartData) {
+    // Ensure all state variables are properly synchronized
+    print("🔄 [ContentView] Syncing chart states with data")
+    print("   - Data has \(data.dataPoints.count) points")
+    print("   - Data xAxisKey: '\(data.xAxisKey ?? "nil")', yAxisKey: '\(data.yAxisKey ?? "nil")'")
+    
+    // Update chart type selection to match current data
+    if selectedChartType != data.chartType {
+      selectedChartType = data.chartType
+      print("   - Updated chart type to: \(selectedChartType)")
+    }
+    
+    // Update axis selections to match current data - prioritize keys over labels
+    let currentXKey = data.xAxisKey ?? ""
+    let currentYKey = data.yAxisKey ?? ""
+    let currentXLabel = data.xLabel ?? ""
+    let currentYLabel = data.yLabel ?? ""
+    
+    if selectedXAxisKey != currentXKey {
+      selectedXAxisKey = currentXKey
+      selectedXAxisDisplay = currentXLabel
+      selectedXAxis = currentXLabel  // Keep for backward compatibility
+      print("   - Updated X-axis key to: '\(selectedXAxisKey)' (display: '\(selectedXAxisDisplay)')")
+    }
+    
+    if selectedYAxisKey != currentYKey {
+      selectedYAxisKey = currentYKey
+      selectedYAxisDisplay = currentYLabel
+      selectedYAxis = currentYLabel  // Keep for backward compatibility
+      print("   - Updated Y-axis key to: '\(selectedYAxisKey)' (display: '\(selectedYAxisDisplay)')")
+    }
+    
+    print("✅ [ContentView] Chart states synchronized")
   }
 }

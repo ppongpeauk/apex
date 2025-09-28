@@ -813,33 +813,38 @@ class DataAnalyzer:
             print(f"❌ [DataAnalyzer] Chat error with history: {e}")
             return f"Sorry, I encountered an error: {str(e)}"
 
-    def send_chat_message_with_chart_detection(self, message: str, history: list) -> dict:
+    def send_chat_message_with_chart_detection(self, message: str, history: list, current_data: dict = None) -> dict:
         """
-        Send a chat message and detect if user wants to change chart type
-        Returns both the response and any chart changes
+        Send a chat message and intelligently detect chart generation requests
+        Returns both the response and any chart changes with reasoning
         """
         try:
-            print(f"💬 [DataAnalyzer] Processing chat message with chart detection: {message[:50]}...")
+            print(f"💬 [DataAnalyzer] Processing chat message with intelligent chart detection: {message[:50]}...")
 
-            # First, detect if this is a chart type request
-            chart_type = self._detect_chart_type_request(message)
+            # Get intelligent chart recommendation based on user prompt and data context
+            chart_recommendation = self._get_intelligent_chart_recommendation(message, current_data)
             
-            # Get the regular AI response
-            ai_response = self.send_chat_message_with_history(message, history)
+            # Build context-aware messages for AI
+            messages = self._build_chat_messages_with_context(message, history, current_data, chart_recommendation)
+            
+            # Get AI response with context
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=messages,
+                max_tokens=500,
+                temperature=0.7,
+            )
+            
+            ai_response = response.choices[0].message.content
             
             # Prepare response
             response_data = {
                 "response": ai_response,
-                "chart_change": None
+                "chart_change": chart_recommendation
             }
             
-            # If a chart type was detected, add it to the response
-            if chart_type:
-                response_data["chart_change"] = {
-                    "chart_type": chart_type,
-                    "reason": f"Switching to {chart_type} chart as requested"
-                }
-                print(f"📊 [DataAnalyzer] Detected chart type request: {chart_type}")
+            if chart_recommendation:
+                print(f"📊 [DataAnalyzer] Intelligent chart recommendation: {chart_recommendation}")
             
             return response_data
 
@@ -850,24 +855,146 @@ class DataAnalyzer:
                 "chart_change": None
             }
 
-    def _detect_chart_type_request(self, message: str) -> str:
+    def _get_intelligent_chart_recommendation(self, message: str, current_data: dict = None) -> dict:
         """
-        Detect if the user is requesting a specific chart type
+        Intelligently recommend chart based on user prompt and data context
+        """
+        try:
+            # Build a prompt for GPT to analyze the user's request
+            system_prompt = """You are an expert data visualization assistant. Analyze the user's request and current data context to recommend the best chart configuration.
+            
+            Return a JSON object with:
+            {
+                "chart_type": "line|bar|scatter|pie|null",
+                "x_axis": "column_name or null",
+                "y_axis": "column_name or null", 
+                "reasoning": "Brief explanation of why this visualization was chosen",
+                "title": "Suggested chart title"
+            }
+            
+            Consider:
+            - User's explicit requests (e.g., "show me trends over time" → line chart)
+            - Data types (categorical vs numerical, temporal)
+            - Analysis goals (comparison, distribution, correlation, composition)
+            - Best practices for data visualization
+            
+            If no chart change is needed, return null for chart_type."""
+            
+            # Build context about current data
+            data_context = ""
+            if current_data:
+                if "columns" in current_data:
+                    data_context += f"\nAvailable columns: {', '.join(current_data['columns'])}"
+                if "shape" in current_data:
+                    data_context += f"\nData shape: {current_data['shape'][0]} rows, {current_data['shape'][1]} columns"
+                if "current_chart" in current_data:
+                    data_context += f"\nCurrent chart: {current_data['current_chart']['type']} showing {current_data['current_chart'].get('x_axis', 'N/A')} vs {current_data['current_chart'].get('y_axis', 'N/A')}"
+            
+            user_prompt = f"User request: {message}\n{data_context}"
+            
+            # Get AI recommendation
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                max_tokens=300,
+                temperature=0.3,  # Lower temperature for more consistent JSON
+                response_format={"type": "json_object"}
+            )
+            
+            recommendation = json.loads(response.choices[0].message.content)
+            
+            # Only return if there's an actual chart change recommended
+            if recommendation.get("chart_type"):
+                return {
+                    "chart_type": recommendation["chart_type"],
+                    "x_axis": recommendation.get("x_axis"),
+                    "y_axis": recommendation.get("y_axis"),
+                    "reason": recommendation.get("reasoning", ""),
+                    "title": recommendation.get("title", "")
+                }
+            
+            return None
+            
+        except Exception as e:
+            print(f"⚠️ [DataAnalyzer] Error in intelligent chart recommendation: {e}")
+            # Fallback to simple detection
+            return self._simple_chart_detection(message)
+    
+    def _simple_chart_detection(self, message: str) -> dict:
+        """
+        Simple fallback chart type detection
         """
         message_lower = message.lower()
         
-        # Chart type keywords
-        chart_types = {
-            "line": ["line chart", "line graph", "line plot", "show line", "create line"],
-            "bar": ["bar chart", "bar graph", "bar plot", "show bar", "create bar"],
-            "scatter": ["scatter plot", "scatter chart", "scatter graph", "show scatter", "create scatter"],
-            "pie": ["pie chart", "pie graph", "show pie", "create pie"]
+        # Keywords for different chart types and analysis goals
+        chart_patterns = {
+            "line": {
+                "keywords": ["trend", "over time", "timeline", "progression", "change over", "line chart", "line graph"],
+                "reason": "Line charts are best for showing trends and changes over time"
+            },
+            "bar": {
+                "keywords": ["compare", "comparison", "categories", "bar chart", "bar graph", "ranking", "top", "bottom"],
+                "reason": "Bar charts excel at comparing values across categories"
+            },
+            "scatter": {
+                "keywords": ["correlation", "relationship", "scatter plot", "scatter chart", "vs", "against"],
+                "reason": "Scatter plots reveal relationships between two numerical variables"
+            },
+            "pie": {
+                "keywords": ["proportion", "percentage", "composition", "pie chart", "breakdown", "share", "distribution of"],
+                "reason": "Pie charts show parts of a whole effectively"
+            }
         }
         
         # Check for chart type requests
-        for chart_type, keywords in chart_types.items():
-            for keyword in keywords:
+        for chart_type, config in chart_patterns.items():
+            for keyword in config["keywords"]:
                 if keyword in message_lower:
-                    return chart_type
+                    return {
+                        "chart_type": chart_type,
+                        "reason": config["reason"]
+                    }
         
         return None
+    
+    def _build_chat_messages_with_context(self, message: str, history: list, current_data: dict, chart_recommendation: dict) -> list:
+        """
+        Build chat messages with full context for intelligent responses
+        """
+        # System message with context
+        system_content = """You are an intelligent data visualization assistant. You help users understand their data and create meaningful visualizations.
+        
+        When discussing charts:
+        1. Explain WHY certain visualizations work best for their data
+        2. Provide insights about patterns you notice
+        3. Suggest alternative views if appropriate
+        4. Be concise but informative"""
+        
+        # Add data context if available
+        if current_data:
+            system_content += "\n\nCurrent Data Context:"
+            if "columns" in current_data:
+                system_content += f"\n- Columns: {', '.join(current_data['columns'])}"
+            if "shape" in current_data:
+                system_content += f"\n- Size: {current_data['shape'][0]} rows, {current_data['shape'][1]} columns"
+        
+        # Add chart change context if applicable
+        if chart_recommendation:
+            system_content += f"\n\nChart Update: Changing to {chart_recommendation['chart_type']} chart"
+            if chart_recommendation.get('reason'):
+                system_content += f"\nReason: {chart_recommendation['reason']}"
+        
+        messages = [{"role": "system", "content": system_content}]
+        
+        # Add conversation history (limit to recent messages)
+        for item in history[-6:]:
+            if isinstance(item, dict):
+                messages.append({"role": item.get("role", "user"), "content": item.get("content", "")})
+        
+        # Add current message
+        messages.append({"role": "user", "content": message})
+        
+        return messages
