@@ -23,6 +23,10 @@ struct ChartVisualizationView: View {
             barChartView
                 case "line":
                     lineChartView
+                case "scatter":
+                    scatterChartView
+                case "pie":
+                    pieChartView
                 default:
             lineChartView  // Default to line chart
                 }
@@ -166,6 +170,61 @@ struct ChartVisualizationView: View {
     }
   }
 
+  // MARK: - Scatter Chart
+  private var scatterChartView: some View {
+    let processedData: [ScatterChartItem] = aggregateDataForScatterChart()
+    let xLabel: String = chartData.xLabel ?? "X"
+    let yLabel: String = chartData.yLabel ?? "Y"
+    
+    print("📊 [ScatterChart] Rendering chart with \(processedData.count) points")
+    if let first = processedData.first, let last = processedData.last {
+      print("📊 [ScatterChart] X range: \(first.xValue) to \(last.xValue)")
+      print("📊 [ScatterChart] Y range: \(first.yValue) to \(last.yValue)")
+    }
+    
+    return Chart(processedData) { item in
+      PointMark(
+        x: .value(xLabel, item.xValue),
+        y: .value(yLabel, item.yValue)
+      )
+      .foregroundStyle(.blue)
+      .symbolSize(50)
+    }
+    .chartXAxisLabel(xLabel)
+    .chartYAxisLabel(yLabel)
+    .chartXAxis {
+      AxisMarks { _ in
+        AxisValueLabel()
+      }
+    }
+    .chartYAxis {
+      AxisMarks { _ in
+        AxisValueLabel()
+      }
+    }
+  }
+
+  // MARK: - Pie Chart
+  private var pieChartView: some View {
+    let processedData: [PieChartItem] = aggregateDataForPieChart()
+    let xLabel: String = chartData.xLabel ?? "Category"
+    let yLabel: String = chartData.yLabel ?? "Value"
+    
+    print("📊 [PieChart] Rendering chart with \(processedData.count) segments")
+    
+    return Chart(processedData) { item in
+      SectorMark(
+        angle: .value(yLabel, item.value),
+        innerRadius: .ratio(0.2),
+        angularInset: 2
+      )
+      .foregroundStyle(by: .value(xLabel, item.label))
+    }
+    .chartLegend(position: .bottom, alignment: .center)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .frame(width: 400, height: 400)
+  }
+
   // MARK: - Scroll Position Indicator
   private var scrollPositionIndicator: some View {
     HStack {
@@ -222,13 +281,27 @@ extension ChartVisualizationView {
     let displayedDataPointCount = getDisplayedDataPointCount()
     let baseWidth: CGFloat = 600
     
-    // For bar charts, we need more space per data point
-    if chartData.chartType == "bar" {
+    switch chartData.chartType {
+    case "bar":
+      // For bar charts, we need more space per data point
       return max(baseWidth, CGFloat(displayedDataPointCount) * 60)
+      
+    case "line":
+      // For line charts, we can be more compact
+      return max(baseWidth, CGFloat(displayedDataPointCount) * 40)
+      
+    case "scatter":
+      // For scatter plots, we need space for all points
+      return max(baseWidth, CGFloat(displayedDataPointCount) * 30)
+      
+    case "pie":
+      // For pie charts, we don't need much horizontal space
+      return baseWidth
+      
+    default:
+      // Default to line chart behavior
+      return max(baseWidth, CGFloat(displayedDataPointCount) * 40)
     }
-    
-    // For line charts, we can be more compact
-    return max(baseWidth, CGFloat(displayedDataPointCount) * 40)
   }
   
   // Get the actual number of data points that will be displayed after aggregation
@@ -251,6 +324,16 @@ extension ChartVisualizationView {
         // For temporal data, use all data points
         return chartData.dataPoints.count
       }
+      
+    case "scatter":
+      // For scatter plots, use all data points (no aggregation)
+      return chartData.dataPoints.count
+      
+    case "pie":
+      // For pie charts, count unique X-axis values (categories) after aggregation
+      let uniqueXValues = Set(chartData.dataPoints.map { $0.x.stringValue })
+      // Limit to top 10 for readability (same as in aggregation function)
+      return min(uniqueXValues.count, 10)
       
     default:
       // Default to line chart behavior
@@ -278,6 +361,18 @@ extension ChartVisualizationView {
     let id = UUID()
     let xValue: String  // Use String to preserve actual date/number formatting
     let yValue: Double
+  }
+
+  struct ScatterChartItem: Identifiable {
+    let id = UUID()
+    let xValue: Double  // Scatter plots typically use numeric values
+    let yValue: Double
+  }
+
+  struct PieChartItem: Identifiable {
+    let id = UUID()
+    let label: String
+    let value: Double
   }
 
   private func aggregateDataForBarChart() -> [BarChartItem] {
@@ -509,6 +604,81 @@ extension ChartVisualizationView {
 
     // Return the first suitable category column
     return candidateColumns.first ?? ""
+  }
+
+  private func aggregateDataForScatterChart() -> [ScatterChartItem] {
+    // For scatter plots, we need numeric X and Y values
+    // Convert string values to numbers where possible
+    print("🔍 [ScatterChart] Processing \(chartData.dataPoints.count) data points")
+    
+    var items: [ScatterChartItem] = []
+    
+    for (index, point) in chartData.dataPoints.enumerated() {
+      guard let y = point.y else { 
+        print("⚠️ [ScatterChart] Skipping point \(index): no y value")
+        continue 
+      }
+      
+      // Try to convert X value to number
+      let xValue: Double
+      switch point.x {
+      case .double(let value):
+        xValue = value
+      case .int(let value):
+        xValue = Double(value)
+      case .string(let value):
+        // Try to parse string as number
+        if let parsed = Double(value) {
+          xValue = parsed
+        } else {
+          // Use hash of string as numeric value for categorical data
+          xValue = Double(value.hash) / 1000000.0
+        }
+      case .date(let value):
+        xValue = value.timeIntervalSince1970
+      }
+      
+      let yValue = y.doubleValue
+      
+      print("📊 [ScatterChart] Point \(index): x=\(xValue), y=\(yValue)")
+      items.append(ScatterChartItem(xValue: xValue, yValue: yValue))
+    }
+    
+    print("📊 [ScatterChart] Returning \(items.count) scatter points")
+    return items
+  }
+
+  private func aggregateDataForPieChart() -> [PieChartItem] {
+    // For pie charts, we aggregate by X-axis values (categories) and sum Y values
+    print("🔍 [PieChart] Processing \(chartData.dataPoints.count) data points")
+    
+    var groupedData: [String: [Double]] = [:]
+    
+    for point in chartData.dataPoints {
+      guard let y = point.y else { continue }
+      
+      let xKey = point.x.stringValue
+      let yValue = y.doubleValue
+      
+      if groupedData[xKey] == nil {
+        groupedData[xKey] = []
+      }
+      groupedData[xKey]?.append(yValue)
+    }
+    
+    // Convert to pie chart items (sum by default)
+    let items = groupedData.compactMap { (key, values) -> PieChartItem? in
+      guard !values.isEmpty else { return nil }
+      let sum = values.reduce(0, +)
+      print("📊 [PieChart] Category \(key): \(values.count) points, total=\(sum)")
+      return PieChartItem(label: key, value: sum)
+    }
+    
+    // Sort by value (descending) and limit to top 10 for readability
+    let sorted = items.sorted { $0.value > $1.value }
+    let limited = Array(sorted.prefix(10))
+    print("📊 [PieChart] Returning \(limited.count) pie segments")
+    return limited
   }
 
   private func getCategoryColor(_ category: String) -> Color {

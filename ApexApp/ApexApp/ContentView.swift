@@ -228,8 +228,8 @@ struct ContentView: View {
         .font(.subheadline)
         .fontWeight(.medium)
 
-      let chartTypes = ["line", "bar"]
-      LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
+      let chartTypes = ["line", "bar", "scatter", "pie"]
+      LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 8) {
         ForEach(chartTypes, id: \.self) { chartType in
           Button(action: {
             selectedChartType = chartType
