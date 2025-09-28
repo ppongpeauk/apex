@@ -175,13 +175,13 @@ struct ChartVisualizationView: View {
     let processedData: [ScatterChartItem] = aggregateDataForScatterChart()
     let xLabel: String = chartData.xLabel ?? "X"
     let yLabel: String = chartData.yLabel ?? "Y"
-    
+
     print("📊 [ScatterChart] Rendering chart with \(processedData.count) points")
     if let first = processedData.first, let last = processedData.last {
       print("📊 [ScatterChart] X range: \(first.xValue) to \(last.xValue)")
       print("📊 [ScatterChart] Y range: \(first.yValue) to \(last.yValue)")
     }
-    
+
     return Chart(processedData) { item in
       PointMark(
         x: .value(xLabel, item.xValue),
@@ -209,9 +209,9 @@ struct ChartVisualizationView: View {
     let processedData: [PieChartItem] = aggregateDataForPieChart()
     let xLabel: String = chartData.xLabel ?? "Category"
     let yLabel: String = chartData.yLabel ?? "Value"
-    
+
     print("📊 [PieChart] Rendering chart with \(processedData.count) segments")
-    
+
     return Chart(processedData) { item in
       SectorMark(
         angle: .value(yLabel, item.value),
@@ -243,13 +243,20 @@ struct ChartVisualizationView: View {
     .background(Color(.windowBackgroundColor))
     .cornerRadius(6)
     }
-    
+
     // MARK: - Data Summary
     private var dataSummaryView: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // AI Reasoning Display (from chat-interface)
+            Text(chartData.reasoning)
+                .font(.caption)
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.leading)
+
+            // Data Info (from main branch)
             Text("Data Summary")
                 .font(.headline)
-            
+
             HStack {
                 Label("\(chartData.dataPoints.count) data points", systemImage: "number.circle")
                 Spacer()

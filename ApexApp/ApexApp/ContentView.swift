@@ -506,7 +506,7 @@ struct ContentView: View {
       title: "\(yAxis) by \(xAxis)",
       xLabel: xAxis,
       yLabel: yAxis,
-      reasoning: "User customized visualization",
+      reasoning: originalData.reasoning, // Preserve original AI reasoning
       dataPoints: newDataPoints,
       originalData: originalData.originalData
     )
