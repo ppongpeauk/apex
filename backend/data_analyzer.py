@@ -5,10 +5,11 @@ import json
 from openai import OpenAI
 from config import OPENAI_API_KEY
 
+
 class DataAnalyzer:
     def __init__(self):
         self.client = OpenAI(api_key=OPENAI_API_KEY)
-    
+
     def analyze_csv(self, file_path: str) -> Dict[str, Any]:
         """
         Analyze CSV file using smart sampling for large files
@@ -18,10 +19,12 @@ class DataAnalyzer:
 
             # Get file info and determine strategy
             file_info = self._get_file_info(file_path)
-            print(f"📄 [DataAnalyzer] File info: {file_info['rows']:,} rows, {file_info['size_mb']:.1f}MB")
+            print(
+                f"📄 [DataAnalyzer] File info: {file_info['rows']:,} rows, {file_info['size_mb']:.1f}MB"
+            )
 
             # Use smart sampling for large files
-            if file_info['rows'] > 10000 or file_info['size_mb'] > 5:
+            if file_info["rows"] > 10000 or file_info["size_mb"] > 5:
                 print(f"🧠 [DataAnalyzer] Using smart sampling strategy for large file")
                 return self._analyze_large_csv(file_path, file_info)
             else:
@@ -30,10 +33,7 @@ class DataAnalyzer:
 
         except Exception as e:
             print(f"❌ [DataAnalyzer] Error during analysis: {e}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     def _get_file_info(self, file_path: str) -> Dict[str, Any]:
         """
@@ -47,16 +47,12 @@ class DataAnalyzer:
         # Estimate row count by reading a small sample
         try:
             sample_df = pd.read_csv(file_path, nrows=1000)
-            sample_size = len(str(sample_df.to_csv(index=False)).encode('utf-8'))
+            sample_size = len(str(sample_df.to_csv(index=False)).encode("utf-8"))
             estimated_rows = max(1000, int(file_size / sample_size * 1000))
         except:
             estimated_rows = 10000  # Default estimate
 
-        return {
-            'size_bytes': file_size,
-            'size_mb': size_mb,
-            'rows': estimated_rows
-        }
+        return {"size_bytes": file_size, "size_mb": size_mb, "rows": estimated_rows}
 
     def _analyze_large_csv(self, file_path: str, file_info: Dict) -> Dict[str, Any]:
         """
@@ -66,27 +62,35 @@ class DataAnalyzer:
 
         # Step 1: Read header and first few rows to understand structure
         header_df = pd.read_csv(file_path, nrows=100)
-        print(f"📋 [DataAnalyzer] Read header and first 100 rows. Columns: {list(header_df.columns)}")
+        print(
+            f"📋 [DataAnalyzer] Read header and first 100 rows. Columns: {list(header_df.columns)}"
+        )
 
         # Step 2: Get strategic samples from different parts of the file
         samples = self._get_strategic_samples(file_path, file_info)
 
         # Step 3: Combine samples for analysis
-        combined_df = pd.concat([header_df] + samples, ignore_index=True).drop_duplicates()
+        combined_df = pd.concat(
+            [header_df] + samples, ignore_index=True
+        ).drop_duplicates()
         print(f"📊 [DataAnalyzer] Combined sample size: {len(combined_df)} rows")
 
         # Step 4: Analyze the sample
-        data_info = self._get_data_info(combined_df, original_size=file_info['rows'])
+        data_info = self._get_data_info(combined_df, original_size=file_info["rows"])
 
         # Step 5: Get AI recommendation based on sample
         ai_recommendation = self._get_ai_recommendation(combined_df, data_info)
 
         # Step 6: Process FULL dataset for visualization (user requirement)
         print(f"🎯 [DataAnalyzer] Processing full dataset for visualization...")
-        full_processed_data = self._process_full_dataset_for_chart(file_path, ai_recommendation)
+        full_processed_data = self._process_full_dataset_for_chart(
+            file_path, ai_recommendation
+        )
 
         # Also keep sample for debugging/fallback
-        sample_processed_data = self._process_data_for_chart(combined_df, ai_recommendation)
+        sample_processed_data = self._process_data_for_chart(
+            combined_df, ai_recommendation
+        )
 
         # Clean all data for JSON serialization
         clean_data = {
@@ -94,18 +98,22 @@ class DataAnalyzer:
             "data_info": self._clean_for_json(data_info),
             "recommendation": self._clean_for_json(ai_recommendation),
             "processed_data": self._clean_for_json(full_processed_data),  # Full dataset
-            "sample_data": self._clean_for_json(sample_processed_data),   # Sample for debugging
-            "raw_data": self._clean_for_json(combined_df.to_dict('records')[:100]),
+            "sample_data": self._clean_for_json(
+                sample_processed_data
+            ),  # Sample for debugging
+            "raw_data": self._clean_for_json(combined_df.to_dict("records")[:100]),
             "sampling_info": {
-                "original_rows": file_info['rows'],
+                "original_rows": file_info["rows"],
                 "sample_rows": len(combined_df),
                 "full_processed_rows": len(full_processed_data),
-                "file_size_mb": file_info['size_mb']
-            }
+                "file_size_mb": file_info["size_mb"],
+            },
         }
         return clean_data
 
-    def _get_strategic_samples(self, file_path: str, file_info: Dict) -> List[pd.DataFrame]:
+    def _get_strategic_samples(
+        self, file_path: str, file_info: Dict
+    ) -> List[pd.DataFrame]:
         """
         Get strategic samples optimized for different data types including time series
         """
@@ -114,11 +122,13 @@ class DataAnalyzer:
 
         try:
             # Total lines estimate
-            total_rows = file_info['rows']
+            total_rows = file_info["rows"]
 
             # For time series data, we need better temporal distribution
             # Sample at regular intervals throughout the file
-            num_samples = min(5, max(3, total_rows // 10000))  # 3-5 samples depending on size
+            num_samples = min(
+                5, max(3, total_rows // 10000)
+            )  # 3-5 samples depending on size
             interval = total_rows // (num_samples + 1)
 
             print(f"📍 [DataAnalyzer] Using {num_samples} strategically spaced samples")
@@ -127,10 +137,16 @@ class DataAnalyzer:
                 try:
                     skip_rows = min(total_rows - sample_size - 1, i * interval)
                     if skip_rows > 0:
-                        sample_df = pd.read_csv(file_path, skiprows=range(1, skip_rows + 1), nrows=sample_size)
+                        sample_df = pd.read_csv(
+                            file_path,
+                            skiprows=range(1, skip_rows + 1),
+                            nrows=sample_size,
+                        )
                         if not sample_df.empty:
                             samples.append(sample_df)
-                            print(f"📍 [DataAnalyzer] Sampled {len(sample_df)} rows from position {skip_rows:,}")
+                            print(
+                                f"📍 [DataAnalyzer] Sampled {len(sample_df)} rows from position {skip_rows:,}"
+                            )
                 except Exception as sample_error:
                     print(f"⚠️ [DataAnalyzer] Failed to get sample {i}: {sample_error}")
                     continue
@@ -139,7 +155,9 @@ class DataAnalyzer:
             if total_rows > 2000:
                 try:
                     end_skip = max(0, total_rows - sample_size - 100)
-                    end_df = pd.read_csv(file_path, skiprows=range(1, end_skip + 1), nrows=sample_size)
+                    end_df = pd.read_csv(
+                        file_path, skiprows=range(1, end_skip + 1), nrows=sample_size
+                    )
                     if not end_df.empty:
                         samples.append(end_df)
                         print(f"📍 [DataAnalyzer] Sampled {len(end_df)} rows from end")
@@ -166,7 +184,7 @@ class DataAnalyzer:
             "data_info": self._clean_for_json(data_info),
             "recommendation": self._clean_for_json(ai_recommendation),
             "processed_data": self._clean_for_json(processed_data),
-            "raw_data": self._clean_for_json(df.to_dict('records')[:100])
+            "raw_data": self._clean_for_json(df.to_dict("records")[:100]),
         }
         return clean_data
 
@@ -174,9 +192,9 @@ class DataAnalyzer:
         """
         Robustly read CSV files with various encodings and separators
         """
-        encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
-        separators = [',', ';', '\t', '|']
-        
+        encodings = ["utf-8", "latin-1", "cp1252", "iso-8859-1"]
+        separators = [",", ";", "\t", "|"]
+
         for encoding in encodings:
             for sep in separators:
                 try:
@@ -185,11 +203,13 @@ class DataAnalyzer:
                         return df
                 except:
                     continue
-        
+
         # Fallback
         return pd.read_csv(file_path)
-    
-    def _get_data_info(self, df: pd.DataFrame, original_size: Optional[int] = None) -> Dict[str, Any]:
+
+    def _get_data_info(
+        self, df: pd.DataFrame, original_size: Optional[int] = None
+    ) -> Dict[str, Any]:
         """
         Extract basic information about the dataset
         """
@@ -202,12 +222,14 @@ class DataAnalyzer:
             "dtypes": df.dtypes.astype(str).to_dict(),
             "missing_values": df.isnull().sum().to_dict(),
             "numeric_columns": list(df.select_dtypes(include=[np.number]).columns),
-            "categorical_columns": list(df.select_dtypes(include=['object', 'category']).columns),
+            "categorical_columns": list(
+                df.select_dtypes(include=["object", "category"]).columns
+            ),
             "datetime_columns": [],
             "sample_data": {},
-            "is_sampled": original_size is not None
+            "is_sampled": original_size is not None,
         }
-        
+
         # Detect datetime columns (more robust detection)
         for col in df.columns:
             try:
@@ -215,19 +237,19 @@ class DataAnalyzer:
                 if col not in info["numeric_columns"]:
                     sample_values = df[col].dropna().head(10)
                     # Try to parse as datetime
-                    parsed_dates = pd.to_datetime(sample_values, errors='coerce')
+                    parsed_dates = pd.to_datetime(sample_values, errors="coerce")
                     # Only count as datetime if most values are successfully parsed AND not purely numeric
                     valid_dates = parsed_dates.notna().sum()
                     if valid_dates >= len(sample_values) * 0.7:  # 70% success rate
                         info["datetime_columns"].append(col)
             except:
                 pass
-        
+
         # Get sample data for each column
         for col in df.columns:
             sample_values = df[col].dropna().head(5).tolist()
             info["sample_data"][col] = sample_values
-        
+
         return info
 
     def _get_data_insights(self, df: pd.DataFrame) -> Dict[str, Any]:
@@ -247,22 +269,26 @@ class DataAnalyzer:
                     # Handle NaN values - convert to None for JSON serialization
                     value_ranges[col] = {
                         "min": None if pd.isna(col_min) else float(col_min),
-                        "max": None if pd.isna(col_max) else float(col_max)
+                        "max": None if pd.isna(col_max) else float(col_max),
                     }
 
                 insights["numeric_patterns"] = {
-                    "has_time_series_pattern": any(col.lower() in ['date', 'time', 'year', 'month'] for col in df.columns),
-                    "value_ranges": value_ranges
+                    "has_time_series_pattern": any(
+                        col.lower() in ["date", "time", "year", "month"]
+                        for col in df.columns
+                    ),
+                    "value_ranges": value_ranges,
                 }
 
             # Categorical insights
-            categorical_cols = df.select_dtypes(include=['object']).columns
+            categorical_cols = df.select_dtypes(include=["object"]).columns
             if len(categorical_cols) > 0:
                 insights["categorical_patterns"] = {
                     col: {
                         "unique_values": int(df[col].nunique()),
-                        "top_values": df[col].value_counts().head(3).to_dict()
-                    } for col in categorical_cols[:3]
+                        "top_values": df[col].value_counts().head(3).to_dict(),
+                    }
+                    for col in categorical_cols[:3]
                 }
 
             # Data characteristics
@@ -273,7 +299,7 @@ class DataAnalyzer:
             insights["data_characteristics"] = {
                 "total_rows": len(df),
                 "missing_data_ratio": float(missing_ratio),
-                "primarily_numeric": len(numeric_cols) > len(categorical_cols)
+                "primarily_numeric": len(numeric_cols) > len(categorical_cols),
             }
 
         except Exception as e:
@@ -305,7 +331,9 @@ class DataAnalyzer:
         else:
             return data
 
-    def _get_ai_recommendation(self, df: pd.DataFrame, data_info: Dict[str, Any]) -> Dict[str, Any]:
+    def _get_ai_recommendation(
+        self, df: pd.DataFrame, data_info: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Use OpenAI to recommend chart type and data mappings (optimized for large files)
         """
@@ -318,7 +346,10 @@ class DataAnalyzer:
             "datetime_columns": data_info["datetime_columns"],
             "shape": data_info["shape"],
             "is_large_dataset": data_info.get("is_sampled", False),
-            "sample_data": {col: data_info["sample_data"][col][:3] for col in data_info["sample_data"]}  # Limit samples
+            "sample_data": {
+                col: data_info["sample_data"][col][:3]
+                for col in data_info["sample_data"]
+            },  # Limit samples
         }
 
         # Add data distribution insights for better recommendations
@@ -351,7 +382,7 @@ class DataAnalyzer:
             "title": "descriptive chart title",
             "x_label": "x-axis label",
             "y_label": "y-axis label (null if not applicable)",
-            "reasoning": "brief explanation of why this chart type was chosen",
+            "reasoning": "explanation of why this chart type was chosen",
             "data_processing": {{
                 "aggregate": "sum/mean/count/none - how to aggregate data if needed",
                 "group_by": "column to group by (null if not applicable)",
@@ -362,28 +393,34 @@ class DataAnalyzer:
 
         Choose the most appropriate visualization that will provide the most insight into this data.
         """
-        
+
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are a data visualization expert. Respond only with valid JSON."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a data visualization expert. Respond only with valid JSON.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
-                temperature=0.1
+                temperature=0.1,
             )
-            
+
             recommendation = json.loads(response.choices[0].message.content)
 
             # Validate recommendation to prevent same-axis assignments
             recommendation = self._validate_recommendation(recommendation, data_info)
             return recommendation
-            
+
         except Exception as e:
+            print(f"❌ [DataAnalyzer] AI recommendation failed: {e}")
             # Fallback recommendation
             return self._get_fallback_recommendation(data_info)
 
-    def _validate_recommendation(self, recommendation: Dict[str, Any], data_info: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_recommendation(
+        self, recommendation: Dict[str, Any], data_info: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Validate and fix common issues in AI recommendations
         """
@@ -392,7 +429,9 @@ class DataAnalyzer:
 
         # Fix same-axis assignments
         if x_axis and y_axis and x_axis == y_axis:
-            print(f"⚠️ [DataAnalyzer] Detected same-axis assignment: {x_axis}. Fixing...")
+            print(
+                f"⚠️ [DataAnalyzer] Detected same-axis assignment: {x_axis}. Fixing..."
+            )
 
             # Try to find a better combination
             numeric_cols = data_info["numeric_columns"]
@@ -407,7 +446,7 @@ class DataAnalyzer:
                 recommendation["title"] = f"{numeric_cols[0]} by {categorical_cols[0]}"
                 recommendation["x_label"] = categorical_cols[0]
                 recommendation["y_label"] = numeric_cols[0]
-                recommendation["reasoning"] = "Categorical vs numeric comparison"
+                recommendation["reasoning"] = ""
                 if "data_processing" not in recommendation:
                     recommendation["data_processing"] = {}
                 recommendation["data_processing"]["group_by"] = categorical_cols[0]
@@ -421,7 +460,7 @@ class DataAnalyzer:
                 recommendation["title"] = f"{numeric_cols[0]} over {datetime_cols[0]}"
                 recommendation["x_label"] = datetime_cols[0]
                 recommendation["y_label"] = numeric_cols[0]
-                recommendation["reasoning"] = "Time series visualization"
+                recommendation["reasoning"] = ""
 
             # If we have multiple numeric columns, use scatter plot
             elif len(numeric_cols) >= 2:
@@ -431,9 +470,11 @@ class DataAnalyzer:
                 recommendation["title"] = f"{numeric_cols[1]} vs {numeric_cols[0]}"
                 recommendation["x_label"] = numeric_cols[0]
                 recommendation["y_label"] = numeric_cols[1]
-                recommendation["reasoning"] = "Correlation analysis"
+                recommendation["reasoning"] = ""
 
-            print(f"✅ [DataAnalyzer] Fixed to: {recommendation['x_axis']} vs {recommendation['y_axis']}")
+            print(
+                f"✅ [DataAnalyzer] Fixed to: {recommendation['x_axis']} vs {recommendation['y_axis']}"
+            )
 
         return recommendation
 
@@ -444,7 +485,7 @@ class DataAnalyzer:
         numeric_cols = data_info["numeric_columns"]
         categorical_cols = data_info["categorical_columns"]
         datetime_cols = data_info["datetime_columns"]
-        
+
         # Simple heuristics
         if len(datetime_cols) > 0 and len(numeric_cols) > 0:
             return {
@@ -455,8 +496,13 @@ class DataAnalyzer:
                 "title": f"{numeric_cols[0]} over {datetime_cols[0]}",
                 "x_label": datetime_cols[0],
                 "y_label": numeric_cols[0],
-                "reasoning": "Time series data detected",
-                "data_processing": {"aggregate": "none", "group_by": None, "sort_by": datetime_cols[0], "limit": None}
+                "reasoning": "",
+                "data_processing": {
+                    "aggregate": "none",
+                    "group_by": None,
+                    "sort_by": datetime_cols[0],
+                    "limit": None,
+                },
             }
         elif len(numeric_cols) >= 2:
             return {
@@ -467,8 +513,13 @@ class DataAnalyzer:
                 "title": f"{numeric_cols[1]} vs {numeric_cols[0]}",
                 "x_label": numeric_cols[0],
                 "y_label": numeric_cols[1],
-                "reasoning": "Two numeric variables for correlation analysis",
-                "data_processing": {"aggregate": "none", "group_by": None, "sort_by": None, "limit": None}
+                "reasoning": "",
+                "data_processing": {
+                    "aggregate": "none",
+                    "group_by": None,
+                    "sort_by": None,
+                    "limit": None,
+                },
             }
         elif len(categorical_cols) > 0 and len(numeric_cols) > 0:
             return {
@@ -479,8 +530,13 @@ class DataAnalyzer:
                 "title": f"{numeric_cols[0]} by {categorical_cols[0]}",
                 "x_label": categorical_cols[0],
                 "y_label": numeric_cols[0],
-                "reasoning": "Categorical vs numeric data",
-                "data_processing": {"aggregate": "sum", "group_by": categorical_cols[0], "sort_by": None, "limit": 20}
+                "reasoning": "",
+                "data_processing": {
+                    "aggregate": "sum",
+                    "group_by": categorical_cols[0],
+                    "sort_by": None,
+                    "limit": 20,
+                },
             }
         else:
             # Default to first two columns
@@ -493,11 +549,18 @@ class DataAnalyzer:
                 "title": "Data Visualization",
                 "x_label": cols[0] if len(cols) > 0 else "X",
                 "y_label": cols[1] if len(cols) > 1 else "Y",
-                "reasoning": "Default visualization",
-                "data_processing": {"aggregate": "none", "group_by": None, "sort_by": None, "limit": None}
+                "reasoning": "",
+                "data_processing": {
+                    "aggregate": "none",
+                    "group_by": None,
+                    "sort_by": None,
+                    "limit": None,
+                },
             }
 
-    def _process_full_dataset_for_chart(self, file_path: str, recommendation: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _process_full_dataset_for_chart(
+        self, file_path: str, recommendation: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """
         Process the FULL dataset for visualization (not just samples)
         """
@@ -521,21 +584,38 @@ class DataAnalyzer:
 
                 if recommendation["y_axis"] and agg_method != "none":
                     if agg_method == "sum":
-                        processed_df = processed_df.groupby(group_col)[recommendation["y_axis"]].sum().reset_index()
+                        processed_df = (
+                            processed_df.groupby(group_col)[recommendation["y_axis"]]
+                            .sum()
+                            .reset_index()
+                        )
                     elif agg_method == "mean":
-                        processed_df = processed_df.groupby(group_col)[recommendation["y_axis"]].mean().reset_index()
+                        processed_df = (
+                            processed_df.groupby(group_col)[recommendation["y_axis"]]
+                            .mean()
+                            .reset_index()
+                        )
                     elif agg_method == "count":
-                        processed_df = processed_df.groupby(group_col).size().reset_index(name=recommendation["y_axis"])
+                        processed_df = (
+                            processed_df.groupby(group_col)
+                            .size()
+                            .reset_index(name=recommendation["y_axis"])
+                        )
 
             # Sort if specified
-            if processing.get("sort_by") and processing["sort_by"] in processed_df.columns:
+            if (
+                processing.get("sort_by")
+                and processing["sort_by"] in processed_df.columns
+            ):
                 processed_df = processed_df.sort_values(processing["sort_by"])
 
             # For visualization, limit to reasonable number of points
             # But much higher than sample limit
             max_chart_points = 10000  # Reasonable for most chart libraries
             if len(processed_df) > max_chart_points:
-                print(f"📊 [DataAnalyzer] Limiting to {max_chart_points:,} points for chart performance")
+                print(
+                    f"📊 [DataAnalyzer] Limiting to {max_chart_points:,} points for chart performance"
+                )
                 # For time series, sample evenly across the data
                 if recommendation.get("x_axis") in processed_df.columns:
                     step = len(processed_df) // max_chart_points
@@ -543,17 +623,21 @@ class DataAnalyzer:
                 else:
                     processed_df = processed_df.head(max_chart_points)
 
-            print(f"📊 [DataAnalyzer] Final processed dataset: {len(processed_df):,} rows")
+            print(
+                f"📊 [DataAnalyzer] Final processed dataset: {len(processed_df):,} rows"
+            )
 
             # Convert to records for JSON serialization
-            return self._clean_for_json(processed_df.to_dict('records'))
+            return self._clean_for_json(processed_df.to_dict("records"))
 
         except Exception as e:
             print(f"❌ [DataAnalyzer] Error processing full dataset: {e}")
             # Fallback to sample processing
             return self._process_data_for_chart_fallback(file_path, recommendation)
 
-    def _process_data_for_chart_fallback(self, file_path: str, recommendation: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _process_data_for_chart_fallback(
+        self, file_path: str, recommendation: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """
         Fallback method if full dataset processing fails
         """
@@ -565,40 +649,57 @@ class DataAnalyzer:
             print(f"❌ [DataAnalyzer] Fallback processing also failed: {e}")
             return []
 
-    def _process_data_for_chart(self, df: pd.DataFrame, recommendation: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _process_data_for_chart(
+        self, df: pd.DataFrame, recommendation: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """
         Process the data according to the AI recommendation
         """
         try:
             processed_df = df.copy()
-            
+
             # Apply data processing steps
             processing = recommendation.get("data_processing", {})
-            
+
             # Group by if specified
             if processing.get("group_by"):
                 group_col = processing["group_by"]
                 agg_method = processing.get("aggregate", "sum")
-                
+
                 if recommendation["y_axis"] and agg_method != "none":
                     if agg_method == "sum":
-                        processed_df = processed_df.groupby(group_col)[recommendation["y_axis"]].sum().reset_index()
+                        processed_df = (
+                            processed_df.groupby(group_col)[recommendation["y_axis"]]
+                            .sum()
+                            .reset_index()
+                        )
                     elif agg_method == "mean":
-                        processed_df = processed_df.groupby(group_col)[recommendation["y_axis"]].mean().reset_index()
+                        processed_df = (
+                            processed_df.groupby(group_col)[recommendation["y_axis"]]
+                            .mean()
+                            .reset_index()
+                        )
                     elif agg_method == "count":
-                        processed_df = processed_df.groupby(group_col).size().reset_index(name=recommendation["y_axis"])
-            
+                        processed_df = (
+                            processed_df.groupby(group_col)
+                            .size()
+                            .reset_index(name=recommendation["y_axis"])
+                        )
+
             # Sort if specified
-            if processing.get("sort_by") and processing["sort_by"] in processed_df.columns:
+            if (
+                processing.get("sort_by")
+                and processing["sort_by"] in processed_df.columns
+            ):
                 processed_df = processed_df.sort_values(processing["sort_by"])
-            
+
             # Limit if specified
             if processing.get("limit"):
                 processed_df = processed_df.head(processing["limit"])
-            
+
             # Convert to records for JSON serialization
-            return self._clean_for_json(processed_df.to_dict('records'))
+            return self._clean_for_json(processed_df.to_dict("records"))
 
         except Exception as e:
             # Return original data if processing fails
-            return self._clean_for_json(df.to_dict('records')[:100])
+            return self._clean_for_json(df.to_dict("records")[:100])

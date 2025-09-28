@@ -35,12 +35,12 @@ fi
 
 # Verify required packages are installed
 echo "🔍 Verifying dependencies..."
-python -c "import fastapi" 2>/dev/null || { 
+python -c "import fastapi" 2>/dev/null || {
     echo "❌ FastAPI not found! Please run ./setup.sh to install dependencies."
     exit 1
 }
 
-python -c "import uvicorn" 2>/dev/null || { 
+python -c "import uvicorn" 2>/dev/null || {
     echo "❌ Uvicorn not found! Please run ./setup.sh to install dependencies."
     exit 1
 }

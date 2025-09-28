@@ -143,23 +143,13 @@ struct ChartVisualizationView: View {
   // MARK: - Data Summary
   private var dataSummaryView: some View {
     VStack(alignment: .leading, spacing: 8) {
-      Text("Data Summary")
-        .font(.headline)
-
-      HStack {
-        Label("\(chartData.dataPoints.count) data points", systemImage: "number.circle")
-        Spacer()
-        if let originalData = chartData.originalData as? [String: Any],
-          let shape = originalData["shape"] as? [Int]
-        {
-          Label("\(shape[0]) rows × \(shape[1]) columns", systemImage: "tablecells")
-        }
-      }
-      .font(.caption)
-      .foregroundColor(.secondary)
+      Text(chartData.reasoning)
+        .font(.caption)
+        .foregroundColor(.primary)
+        .multilineTextAlignment(.leading)
     }
     .padding()
-    .background(Color(.windowBackgroundColor))
+    .background(Color.gray)
     .cornerRadius(8)
   }
 }
