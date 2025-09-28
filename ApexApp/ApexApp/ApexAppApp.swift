@@ -6,12 +6,20 @@
 //
 
 import SwiftUI
+import AppKit
 
 @main
 struct ApexAppApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
+  @StateObject private var viewModel = DataVisualizationViewModel()
+
+  var body: some Scene {
+    WindowGroup {
+      ContentView()
+        .environmentObject(viewModel)
+        .background(WindowAccessor())
+        .onAppear {
+          StatusItemController.shared.ensureDropZoneVisible(with: viewModel)
         }
     }
+  }
 }

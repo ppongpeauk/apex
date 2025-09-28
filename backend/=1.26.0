@@ -1,6 +1,5 @@
 Collecting numpy
-  Downloading numpy-2.3.3-cp313-cp313-macosx_14_0_arm64.whl.metadata (62 kB)
-Downloading numpy-2.3.3-cp313-cp313-macosx_14_0_arm64.whl (5.1 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.1/5.1 MB 23.3 MB/s  0:00:00
+  Using cached numpy-2.3.3-cp313-cp313-macosx_14_0_arm64.whl.metadata (62 kB)
+Using cached numpy-2.3.3-cp313-cp313-macosx_14_0_arm64.whl (5.1 MB)
 Installing collected packages: numpy
 Successfully installed numpy-2.3.3

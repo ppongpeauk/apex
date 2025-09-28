@@ -24,7 +24,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		C2D06AA42E8859E3006A3560 /* ApexApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApexApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C2D06AA42E8859E3006A3560 /* ApexApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = ApexApp.app; path = ChoppedShi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C2D06AB12E8859E5006A3560 /* ApexAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ApexAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C2D06ABB2E8859E5006A3560 /* ApexAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ApexAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -95,9 +95,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		C2D06AA32E8859E3006A3560 /* ApexApp */ = {
+		C2D06AA32E8859E3006A3560 /* ChoppedShi */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = C2D06AC52E8859E5006A3560 /* Build configuration list for PBXNativeTarget "ApexApp" */;
+			buildConfigurationList = C2D06AC52E8859E5006A3560 /* Build configuration list for PBXNativeTarget "ChoppedShi" */;
 			buildPhases = (
 				C2D06AA02E8859E3006A3560 /* Sources */,
 				C2D06AA12E8859E3006A3560 /* Frameworks */,
@@ -110,10 +110,10 @@
 			fileSystemSynchronizedGroups = (
 				C2D06AA62E8859E3006A3560 /* ApexApp */,
 			);
-			name = ApexApp;
+			name = ChoppedShi;
 			packageProductDependencies = (
 			);
-			productName = ApexApp;
+			productName = ChoppedShi;
 			productReference = C2D06AA42E8859E3006A3560 /* ApexApp.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -200,7 +200,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				C2D06AA32E8859E3006A3560 /* ApexApp */,
+				C2D06AA32E8859E3006A3560 /* ChoppedShi */,
 				C2D06AB02E8859E5006A3560 /* ApexAppTests */,
 				C2D06ABA2E8859E5006A3560 /* ApexAppUITests */,
 			);
@@ -258,12 +258,12 @@
 /* Begin PBXTargetDependency section */
 		C2D06AB32E8859E5006A3560 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = C2D06AA32E8859E3006A3560 /* ApexApp */;
+			target = C2D06AA32E8859E3006A3560 /* ChoppedShi */;
 			targetProxy = C2D06AB22E8859E5006A3560 /* PBXContainerItemProxy */;
 		};
 		C2D06ABD2E8859E5006A3560 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = C2D06AA32E8859E3006A3560 /* ApexApp */;
+			target = C2D06AA32E8859E3006A3560 /* ChoppedShi */;
 			targetProxy = C2D06ABC2E8859E5006A3560 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -394,23 +394,23 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ApexApp/ApexApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = F8FHD2SSRY;
+				DEVELOPMENT_TEAM = 354DA25GVF;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				INFOPLIST_FILE = ApexApp/Info.plist;
-				CODE_SIGN_ENTITLEMENTS = ApexApp/ApexApp.entitlements;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = arman.ApexApp;
+				PRODUCT_BUNDLE_IDENTIFIER = arman.ChoppedShi;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -427,23 +427,23 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ApexApp/ApexApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = F8FHD2SSRY;
+				DEVELOPMENT_TEAM = 354DA25GVF;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				INFOPLIST_FILE = ApexApp/Info.plist;
-				CODE_SIGN_ENTITLEMENTS = ApexApp/ApexApp.entitlements;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = arman.ApexApp;
+				PRODUCT_BUNDLE_IDENTIFIER = arman.ChoppedShi;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -547,7 +547,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		C2D06AC52E8859E5006A3560 /* Build configuration list for PBXNativeTarget "ApexApp" */ = {
+		C2D06AC52E8859E5006A3560 /* Build configuration list for PBXNativeTarget "ChoppedShi" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C2D06AC62E8859E5006A3560 /* Debug */,
