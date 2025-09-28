@@ -294,9 +294,10 @@ extension ChartVisualizationView {
       let xValue: Double
       switch point.x {
       case .date(let date):
-        // For dates, use time interval since 1970
-        xValue = date.timeIntervalSince1970
-        print("📅 [LineChart] Point \(index): Date \(date) -> \(xValue)")
+        // For dates, use a more reasonable scale (days since 2020-01-01)
+        let referenceDate = Date(timeIntervalSince1970: 1577836800) // 2020-01-01
+        xValue = date.timeIntervalSince(referenceDate) / 86400 // Convert to days
+        print("📅 [LineChart] Point \(index): Date \(date) -> \(xValue) days since 2020-01-01")
       case .double(let value):
         xValue = value
         print("🔢 [LineChart] Point \(index): Double \(value)")
@@ -309,9 +310,11 @@ extension ChartVisualizationView {
           xValue = numValue
           print("🔢 [LineChart] Point \(index): String '\(str)' -> Number \(xValue)")
         } else if let dateValue = parseDateString(str) {
-          xValue = dateValue.timeIntervalSince1970
-          print("📅 [LineChart] Point \(index): String '\(str)' -> Date \(dateValue) -> \(xValue)")
-            } else {
+          // Use days since 2020-01-01 for consistency
+          let referenceDate = Date(timeIntervalSince1970: 1577836800) // 2020-01-01
+          xValue = dateValue.timeIntervalSince(referenceDate) / 86400
+          print("📅 [LineChart] Point \(index): String '\(str)' -> Date \(dateValue) -> \(xValue) days")
+        } else {
           // For non-numeric strings, use index as x-value
           xValue = Double(index)
           print("⚠️ [LineChart] Point \(index): String '\(str)' -> Index \(xValue)")
