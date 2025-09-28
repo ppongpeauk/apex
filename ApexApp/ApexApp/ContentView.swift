@@ -75,39 +75,53 @@ struct ContentView: View {
 
   // MARK: - Header View
   private var headerView: some View {
-    HStack {
-      Image(systemName: "fork.knife")
-        .font(.title)
-        .foregroundColor(.blue)
+    HStack(spacing: 0) {
+      // Left side of header
+      HStack {
+        Image(systemName: "fork.knife")
+          .font(.title)
+          .foregroundColor(.blue)
 
-      Text("Chopped Shi")
-        .font(.title)
-        .fontWeight(.bold)
-
-      Spacer()
+        Text("Chopped Shi")
+          .font(.title)
+          .fontWeight(.bold)
+      }
+      .padding(.leading)
 
       if viewModel.chartData != nil {
-        VStack(spacing: 8) {
-          Button("Clear") {
-            viewModel.clearData()
-          }
-          .buttonStyle(.bordered)
-          .frame(minWidth: 60)
+        // Flexible spacer to push Clear button towards divider position
+        Spacer()
 
-          Button(action: {
-            withAnimation(.easeInOut(duration: 0.3)) {
-              isSidebarCollapsed.toggle()
-            }
-          }) {
-            Image(systemName: isSidebarCollapsed ? "chevron.left" : "chevron.right")
-              .font(.system(size: 12))
-          }
-          .buttonStyle(.bordered)
-          .frame(minWidth: 60)
+        Button("Clear") {
+          viewModel.clearData()
         }
+        .buttonStyle(.bordered)
+        .frame(minWidth: 60)
+        .padding(.leading, 80)
+
+        // Larger spacer to position arrow button on far right
+        Spacer()
+          .frame(minWidth: 100)
+      } else {
+        Spacer()
+      }
+
+      if viewModel.chartData != nil {
+        Button(action: {
+          withAnimation(.easeInOut(duration: 0.3)) {
+            isSidebarCollapsed.toggle()
+          }
+        }) {
+          Image(systemName: isSidebarCollapsed ? "chevron.left" : "chevron.right")
+            .font(.system(size: 12))
+            .padding(.horizontal, 12)
+        }
+        .buttonStyle(.bordered)
+        .frame(minWidth: 60)
+        .padding(.trailing)
       }
     }
-    .padding()
+    .frame(height: 44)
     .background(Color(.windowBackgroundColor))
   }
 
@@ -190,27 +204,6 @@ struct ContentView: View {
   // MARK: - Chart View
   private func chartView(_ data: ChartData) -> some View {
     VStack(spacing: 0) {
-      // Chart info header
-      VStack(alignment: .leading, spacing: 8) {
-        HStack {
-          Text(data.title)
-            .font(.title2)
-            .fontWeight(.semibold)
-
-          Spacer()
-
-          Text(data.chartType.capitalized)
-            .font(.caption)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Color.blue.opacity(0.2))
-            .cornerRadius(4)
-        }
-
-      }
-      .padding()
-      .background(Color(.windowBackgroundColor))
-
       // Column selection and chart visualization
       HStack(spacing: 0) {
         // Column selection sidebar
@@ -220,10 +213,22 @@ struct ContentView: View {
 
         Divider()
 
-        // Chart visualization
-        ChartVisualizationView(chartData: data)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .padding()
+        // Chart visualization with title
+        VStack(spacing: 16) {
+          // Chart title - properly centered over chart area only
+          Text(data.title)
+            .font(.title)
+            .fontWeight(.bold)
+            .multilineTextAlignment(.center)
+            .padding(.top, 20)
+
+          // Chart visualization
+          ChartVisualizationView(chartData: data)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal)
+        .padding(.bottom)
       }
     }
   }
