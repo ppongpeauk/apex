@@ -10,27 +10,27 @@ import Combine
 import SwiftUI
 
 struct ChartVisualizationView: View {
-  let chartData: ChartData
+    let chartData: ChartData
   @State private var scrollOffset: CGFloat = 0
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 16) {
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
       // Chart content with horizontal scrolling
       ScrollView(.horizontal, showsIndicators: true) {
-        Group {
-          switch chartData.chartType {
+            Group {
+                switch chartData.chartType {
           case "bar":
             barChartView
-          case "line":
-            lineChartView
-          default:
+                case "line":
+                    lineChartView
+                default:
             lineChartView  // Default to line chart
-          }
-        }
-        .frame(minHeight: 300)
+                }
+            }
+            .frame(minHeight: 300)
         .frame(minWidth: calculateOptimalChartWidth()) // Dynamic width based on data points
-        .chartBackground { chartProxy in
-          Color.clear
+            .chartBackground { chartProxy in
+                Color.clear
         }
       }
       .scrollIndicators(.visible)
@@ -39,16 +39,16 @@ struct ChartVisualizationView: View {
       // Scroll position indicator
       if chartData.dataPoints.count > 20 {
         scrollPositionIndicator
-      }
-
-      // Data summary
-      dataSummaryView
+            }
+            
+            // Data summary
+            dataSummaryView
+        }
+        .padding()
     }
-    .padding()
-  }
-
-  // MARK: - Line Chart
-  private var lineChartView: some View {
+    
+    // MARK: - Line Chart
+    private var lineChartView: some View {
     let processedData: [LineChartItem] = aggregateDataForLineChart()
     let xLabel: String = chartData.xLabel ?? "X"
     let yLabel: String = chartData.yLabel ?? "Y"
@@ -60,12 +60,12 @@ struct ChartVisualizationView: View {
     }
     
     return Chart(processedData) { item in
-      LineMark(
+                    LineMark(
         x: .value(xLabel, item.xValue),
         y: .value(yLabel, item.yValue)
-      )
-      .foregroundStyle(.blue)
-      .symbol(.circle)
+                    )
+                    .foregroundStyle(.blue)
+                    .symbol(.circle)
       .symbolSize(50)
     }
     .chartXAxisLabel(xLabel)
@@ -84,10 +84,10 @@ struct ChartVisualizationView: View {
         AxisGridLine()
       }
     }
-  }
-
-  // MARK: - Bar Chart
-  private var barChartView: some View {
+    }
+    
+    // MARK: - Bar Chart
+    private var barChartView: some View {
     // Check if we should use stacked bar chart (multiple categories per X value)
     let shouldUseStacked = shouldUseStackedBarChart()
 
@@ -105,12 +105,12 @@ struct ChartVisualizationView: View {
     let yLabel: String = chartData.yLabel ?? "Y"
     
     return Chart(processedData) { item in
-      BarMark(
+                    BarMark(
         x: .value(xLabel, item.label),
         y: .value(yLabel, item.value)
-      )
-      .foregroundStyle(.blue)
-    }
+                    )
+                    .foregroundStyle(.blue)
+                }
     .chartXAxisLabel(xLabel)
     .chartYAxisLabel(yLabel)
     .chartXAxis {
@@ -120,8 +120,8 @@ struct ChartVisualizationView: View {
       }
     }
     .chartYAxis {
-      AxisMarks { _ in
-        AxisValueLabel()
+            AxisMarks { _ in
+                AxisValueLabel()
       }
     }
   }
@@ -183,30 +183,30 @@ struct ChartVisualizationView: View {
     .padding(.vertical, 8)
     .background(Color(.windowBackgroundColor))
     .cornerRadius(6)
-  }
-
-  // MARK: - Data Summary
-  private var dataSummaryView: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Text("Data Summary")
-        .font(.headline)
-
-      HStack {
-        Label("\(chartData.dataPoints.count) data points", systemImage: "number.circle")
-        Spacer()
-        if let originalData = chartData.originalData as? [String: Any],
+    }
+    
+    // MARK: - Data Summary
+    private var dataSummaryView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Data Summary")
+                .font(.headline)
+            
+            HStack {
+                Label("\(chartData.dataPoints.count) data points", systemImage: "number.circle")
+                Spacer()
+                if let originalData = chartData.originalData as? [String: Any],
           let shape = originalData["shape"] as? [Int]
         {
-          Label("\(shape[0]) rows × \(shape[1]) columns", systemImage: "tablecells")
+                    Label("\(shape[0]) rows × \(shape[1]) columns", systemImage: "tablecells")
+                }
+            }
+            .font(.caption)
+            .foregroundColor(.secondary)
         }
-      }
-      .font(.caption)
-      .foregroundColor(.secondary)
-    }
-    .padding()
+        .padding()
     .background(Color(.windowBackgroundColor))
-    .cornerRadius(8)
-  }
+        .cornerRadius(8)
+    }
 }
 
 // MARK: - Helper Functions
@@ -274,8 +274,8 @@ extension ChartVisualizationView {
       return BarChartItem(label: key, value: sum)
     }
 
-    // Sort by value (descending) and limit to 5 items for clean visualization
-    return Array(items.sorted { $0.value > $1.value }.prefix(5))
+    // Sort by value (descending) and limit to 20 items for better visualization
+    return Array(items.sorted { $0.value > $1.value }.prefix(20))
   }
 
   private func aggregateDataForLineChart() -> [LineChartItem] {
@@ -311,7 +311,7 @@ extension ChartVisualizationView {
         } else if let dateValue = parseDateString(str) {
           xValue = dateValue.timeIntervalSince1970
           print("📅 [LineChart] Point \(index): String '\(str)' -> Date \(dateValue) -> \(xValue)")
-        } else {
+            } else {
           // For non-numeric strings, use index as x-value
           xValue = Double(index)
           print("⚠️ [LineChart] Point \(index): String '\(str)' -> Index \(xValue)")
@@ -487,5 +487,5 @@ extension Array where Element == String {
       }
     }
     return uniqueElements
-  }
+    }
 }
