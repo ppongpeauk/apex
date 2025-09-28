@@ -106,14 +106,12 @@ struct ChartData: Equatable {
         self.reasoning = apiResponse.analysis.recommendation.reasoning
 
         // Convert processed data to chart-friendly format
-        self.dataPoints = apiResponse.analysis.processedData.compactMap { anyCodableDict in
-            // Convert AnyCodable dict to regular dict
-            let dict = anyCodableDict.mapValues { $0.value }
-            return DataPoint(from: dict,
-                     xKey: apiResponse.analysis.recommendation.xAxis,
-                     yKey: apiResponse.analysis.recommendation.yAxis,
-                     zKey: apiResponse.analysis.recommendation.zAxis)
-        }
+        self.dataPoints = Self.createDataPoints(
+            from: apiResponse.analysis.processedData,
+            xAxis: apiResponse.analysis.recommendation.xAxis,
+            yAxis: apiResponse.analysis.recommendation.yAxis,
+            zAxis: apiResponse.analysis.recommendation.zAxis
+        )
 
         self.originalData = [
             "filename": apiResponse.filename,
@@ -121,6 +119,101 @@ struct ChartData: Equatable {
             "columns": apiResponse.analysis.dataInfo.columns,
             "raw_data": apiResponse.analysis.rawData
         ]
+    }
+
+    // Static helper function to create data points without self reference
+    private static func createDataPoints(
+        from processedData: [[String: AnyCodable]],
+        xAxis: String?,
+        yAxis: String?,
+        zAxis: String?
+    ) -> [DataPoint] {
+        print("🔍 [ViewModel] Processing \(processedData.count) data records")
+        print("🔍 [ViewModel] Recommended axes - X: '\(xAxis ?? "nil")', Y: '\(yAxis ?? "nil")'")
+
+        // Debug: Show available columns in first record
+        if let firstRecord = processedData.first {
+            let dict = firstRecord.mapValues { $0.value }
+            let availableColumns = Array(dict.keys).sorted()
+            print("🔍 [ViewModel] Available columns in processed data: \(availableColumns)")
+        }
+
+        let dataPoints = processedData.compactMap { anyCodableDict in
+            // Convert AnyCodable dict to regular dict
+            let dict = anyCodableDict.mapValues { $0.value }
+
+            // Try exact match first
+            var dataPoint = DataPoint(from: dict,
+                     xKey: xAxis,
+                     yKey: yAxis,
+                     zKey: zAxis)
+
+            // If exact match fails, try fallback column name matching
+            if dataPoint == nil {
+                let availableKeys = Array(dict.keys)
+                let recommendedX = xAxis ?? ""
+                let recommendedY = yAxis ?? ""
+
+                // Find best matching column names (case-insensitive, partial match)
+                let matchedX = findBestMatch(target: recommendedX, in: availableKeys)
+                let matchedY = findBestMatch(target: recommendedY, in: availableKeys)
+
+                print("🔄 [ViewModel] Fallback matching: '\(recommendedX)' -> '\(matchedX ?? "nil")', '\(recommendedY)' -> '\(matchedY ?? "nil")'")
+
+                dataPoint = DataPoint(from: dict,
+                         xKey: matchedX,
+                         yKey: matchedY,
+                         zKey: nil)
+            }
+
+            if dataPoint == nil {
+                print("⚠️ [ViewModel] DataPoint creation failed even with fallback. Dict keys: \(Array(dict.keys))")
+            }
+
+            return dataPoint
+        }
+
+        print("✅ [ViewModel] Successfully created \(dataPoints.count) data points")
+        return dataPoints
+    }
+
+    // Helper function for fuzzy column name matching
+    private static func findBestMatch(target: String, in candidates: [String]) -> String? {
+        guard !target.isEmpty else { return nil }
+
+        // Try exact match first
+        if candidates.contains(target) {
+            return target
+        }
+
+        let targetLower = target.lowercased()
+
+        // Try case-insensitive exact match
+        for candidate in candidates {
+            if candidate.lowercased() == targetLower {
+                return candidate
+            }
+        }
+
+        // Try partial match (candidate contains target or vice versa)
+        for candidate in candidates {
+            let candidateLower = candidate.lowercased()
+            if candidateLower.contains(targetLower) || targetLower.contains(candidateLower) {
+                return candidate
+            }
+        }
+
+        // Try removing common separators and matching
+        let cleanTarget = targetLower.replacingOccurrences(of: "[\\s\\-_\\(\\)\\.]", with: "", options: .regularExpression)
+        for candidate in candidates {
+            let cleanCandidate = candidate.lowercased().replacingOccurrences(of: "[\\s\\-_\\(\\)\\.]", with: "", options: .regularExpression)
+            if cleanCandidate == cleanTarget {
+                return candidate
+            }
+        }
+
+        print("⚠️ [ViewModel] No match found for '\(target)' in \(candidates)")
+        return nil
     }
 
     // Custom initializer for interactive updates

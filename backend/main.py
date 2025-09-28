@@ -182,18 +182,18 @@ def get_supported_chart_types():
 @app.post("/chat")
 async def chat_endpoint(chat_message: ChatMessage):
     """
-    Handle chat messages and return OpenAI responses
+    Handle chat messages and return OpenAI responses with chart detection
     """
     print(f"💬 [Backend] Received chat message: {chat_message.message}")
 
     try:
-        # Use the analyzer's OpenAI client to send chat message with history
-        response = analyzer.send_chat_message_with_history(
+        # Use the analyzer's enhanced chat method with chart detection
+        response_data = analyzer.send_chat_message_with_chart_detection(
             chat_message.message, chat_message.history
         )
         print(f"✅ [Backend] Chat response generated successfully")
 
-        return {"response": response}
+        return response_data
 
     except Exception as e:
         print(f"❌ [Backend] Chat error: {e}")

@@ -10,51 +10,70 @@ import Combine
 import SwiftUI
 
 struct ChartVisualizationView: View {
-  let chartData: ChartData
+    let chartData: ChartData
+  @State private var scrollOffset: CGFloat = 0
 
-  var body: some View {
-    VStack(alignment: .leading, spacing: 16) {
-      // Chart content
-      Group {
-        switch chartData.chartType {
-        case "bar":
-          barChartView
-        case "line":
-          lineChartView
-        case "scatter":
-          scatterChartView
-        case "pie":
-          pieChartView
-        default:
-          lineChartView  // Default to line chart
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+      // Chart content with horizontal scrolling
+      ScrollView(.horizontal, showsIndicators: true) {
+            Group {
+                switch chartData.chartType {
+          case "bar":
+            barChartView
+                case "line":
+                    lineChartView
+                case "scatter":
+                    scatterChartView
+                case "pie":
+                    pieChartView
+                default:
+            lineChartView  // Default to line chart
+                }
+            }
+            .onAppear {
+                print("🔄 [ChartView] Rendering \(chartData.chartType) chart with \(chartData.dataPoints.count) points")
+            }
+            .frame(minHeight: 300)
+        .frame(minWidth: calculateOptimalChartWidth()) // Dynamic width based on data points
+            .chartBackground { chartProxy in
+                Color.clear
         }
       }
-      .frame(minHeight: 300)
-      .chartBackground { chartProxy in
-        Color.clear
-      }
+      .scrollIndicators(.visible)
+      .frame(maxHeight: 400)
 
-      // Data summary
-      dataSummaryView
+      // Scroll position indicator
+      if getDisplayedDataPointCount() > 20 {
+        scrollPositionIndicator
+            }
+
+            // Data summary
+            dataSummaryView
+        }
+        .padding()
     }
-    .padding()
-  }
 
   // MARK: - Line Chart
-  private var lineChartView: some View {
-    let processedData = aggregateDataForLineChart()
+    private var lineChartView: some View {
+    let processedData: [LineChartItem] = aggregateDataForLineChart()
     let xLabel: String = chartData.xLabel ?? "X"
     let yLabel: String = chartData.yLabel ?? "Y"
 
-    return Chart {
-      ForEach(Array(processedData.enumerated()), id: \.offset) { index, item in
-        LineMark(
-          x: .value(xLabel, item.xValue),
-          y: .value(yLabel, item.yValue)
-        )
-        .foregroundStyle(.blue)
-        .symbol(.circle)
-      }
+    print("📊 [LineChart] Rendering chart with \(processedData.count) points")
+    if let first = processedData.first, let last = processedData.last {
+      print("📊 [LineChart] X range: \(first.xValue) to \(last.xValue)")
+      print("📊 [LineChart] Y range: \(first.yValue) to \(last.yValue)")
+    }
+
+    return Chart(processedData, id: \.id) { item in
+                    LineMark(
+        x: .value(xLabel, item.xValue),
+        y: .value(yLabel, item.yValue)
+                    )
+                    .foregroundStyle(.blue)
+                    .symbol(.circle)
+      .symbolSize(50)
     }
     .chartXAxisLabel(xLabel)
     .chartYAxisLabel(yLabel)
@@ -92,7 +111,7 @@ struct ChartVisualizationView: View {
     let xLabel: String = chartData.xLabel ?? "X"
     let yLabel: String = chartData.yLabel ?? "Y"
     
-    return Chart(processedData) { item in
+    return Chart(processedData, id: \.id) { item in
                     BarMark(
         x: .value(xLabel, item.label),
         y: .value(yLabel, item.value)
@@ -120,7 +139,7 @@ struct ChartVisualizationView: View {
     let yLabel: String = chartData.yLabel ?? "Y"
     let uniqueXValues = unique(processedData.map { $0.xValue })
 
-    return Chart(processedData) { item in
+    return Chart(processedData, id: \.id) { item in
       BarMark(
         x: .value(xLabel, item.xValue),
         y: .value(yLabel, item.yValue)
@@ -166,7 +185,7 @@ struct ChartVisualizationView: View {
       print("📊 [ScatterChart] Y range: \(first.yValue) to \(last.yValue)")
     }
 
-    return Chart(processedData) { item in
+    return Chart(processedData, id: \.id) { item in
       PointMark(
         x: .value(xLabel, item.xValue),
         y: .value(yLabel, item.yValue)
@@ -196,7 +215,7 @@ struct ChartVisualizationView: View {
 
     print("📊 [PieChart] Rendering chart with \(processedData.count) segments")
 
-    return Chart(processedData) { item in
+    return Chart(processedData, id: \.id) { item in
       SectorMark(
         angle: .value(yLabel, item.value),
         innerRadius: .ratio(0.2),

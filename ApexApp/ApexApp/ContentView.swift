@@ -225,6 +225,7 @@ struct ContentView: View {
           // Chart visualization
           ChartVisualizationView(chartData: data)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .id("\(data.chartType)-\(data.xLabel ?? "")-\(data.yLabel ?? "")")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal)

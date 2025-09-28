@@ -158,7 +158,7 @@ class APIService {
         return false
     }
 
-    func sendChatMessage(_ message: String, history: [[String: String]] = []) async throws -> String {
+    func sendChatMessage(_ message: String, history: [[String: String]] = []) async throws -> ChatResponse {
         print("💬 [APIService] Sending chat message: \(message)")
 
         let urls = [
@@ -183,7 +183,7 @@ class APIService {
         throw APIError.networkError(NSError(domain: "APIService", code: -1, userInfo: [NSLocalizedDescriptionKey: "All chat attempts failed"]))
     }
 
-    private func performChatRequest(message: String, history: [[String: String]] = [], targetURL: URL) async throws -> String {
+    private func performChatRequest(message: String, history: [[String: String]] = [], targetURL: URL) async throws -> ChatResponse {
         var request = URLRequest(url: targetURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -212,11 +212,32 @@ class APIService {
         if let jsonResponse = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let responseMessage = jsonResponse["response"] as? String {
             print("✅ [APIService] Received chat response")
-            return responseMessage
+            
+            // Parse chart change if present
+            var chartChange: ChartChange? = nil
+            if let chartChangeData = jsonResponse["chart_change"] as? [String: Any],
+               let chartType = chartChangeData["chart_type"] as? String,
+               let reason = chartChangeData["reason"] as? String {
+                chartChange = ChartChange(chartType: chartType, reason: reason)
+                print("📊 [APIService] Detected chart change: \(chartType)")
+            }
+            
+            return ChatResponse(response: responseMessage, chartChange: chartChange)
         }
 
         throw APIError.decodingError(NSError(domain: "APIService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid chat response format"]))
     }
+}
+
+// MARK: - Chat Response Models
+struct ChatResponse {
+    let response: String
+    let chartChange: ChartChange?
+}
+
+struct ChartChange {
+    let chartType: String
+    let reason: String
 }
 
 enum APIError: LocalizedError {

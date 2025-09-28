@@ -44,10 +44,16 @@ struct ChatSidebar: View {
         // Send to OpenAI via backend
         Task {
             do {
-                let aiResponse = try await apiService.sendChatMessage(text, history: conversationHistory)
+                let chatResponse = try await apiService.sendChatMessage(text, history: conversationHistory)
                 await MainActor.run {
-                    let aiMessage = ChatMessage(text: aiResponse, isUser: false)
+                    let aiMessage = ChatMessage(text: chatResponse.response, isUser: false)
                     messages.append(aiMessage)
+                    
+                    // Handle chart change if present
+                    if let chartChange = chatResponse.chartChange {
+                        handleChartChange(chartChange)
+                    }
+                    
                     isLoading = false
                 }
             } catch {
@@ -85,5 +91,25 @@ struct ChatSidebar: View {
             )
             messages.append(explanationMessage)
         }
+    }
+    
+    private func handleChartChange(_ chartChange: ChartChange) {
+        guard let currentChartData = viewModel.chartData else { return }
+        
+        // Create new chart data with the requested chart type
+        let newChartData = ChartData(
+            chartType: chartChange.chartType,
+            title: currentChartData.title,
+            xLabel: currentChartData.xLabel,
+            yLabel: currentChartData.yLabel,
+            reasoning: chartChange.reason,
+            dataPoints: currentChartData.dataPoints,
+            originalData: currentChartData.originalData
+        )
+        
+        // Update the view model with the new chart data
+        viewModel.chartData = newChartData
+        
+        print("📊 [ChatSidebar] Chart type changed to: \(chartChange.chartType)")
     }
 }

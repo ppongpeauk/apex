@@ -522,23 +522,6 @@ class DataAnalyzer:
                     "limit": None,
                 },
             }
-        elif len(numeric_cols) >= 2:
-            return {
-                "chart_type": "scatter",
-                "x_axis": numeric_cols[0],
-                "y_axis": numeric_cols[1],
-                "z_axis": None,
-                "title": f"{numeric_cols[1]} vs {numeric_cols[0]}",
-                "x_label": numeric_cols[0],
-                "y_label": numeric_cols[1],
-                "reasoning": "",
-                "data_processing": {
-                    "aggregate": "none",
-                    "group_by": None,
-                    "sort_by": None,
-                    "limit": None,
-                },
-            }
         elif len(categorical_cols) > 0 and len(numeric_cols) > 0:
             return {
                 "chart_type": "bar",
@@ -554,6 +537,23 @@ class DataAnalyzer:
                     "group_by": categorical_cols[0],
                     "sort_by": None,
                     "limit": 20,
+                },
+            }
+        elif len(numeric_cols) >= 2:
+            return {
+                "chart_type": "scatter",
+                "x_axis": numeric_cols[0],
+                "y_axis": numeric_cols[1],
+                "z_axis": None,
+                "title": f"{numeric_cols[1]} vs {numeric_cols[0]}",
+                "x_label": numeric_cols[0],
+                "y_label": numeric_cols[1],
+                "reasoning": "",
+                "data_processing": {
+                    "aggregate": "none",
+                    "group_by": None,
+                    "sort_by": None,
+                    "limit": None,
                 },
             }
         else:
@@ -812,3 +812,62 @@ class DataAnalyzer:
         except Exception as e:
             print(f"❌ [DataAnalyzer] Chat error with history: {e}")
             return f"Sorry, I encountered an error: {str(e)}"
+
+    def send_chat_message_with_chart_detection(self, message: str, history: list) -> dict:
+        """
+        Send a chat message and detect if user wants to change chart type
+        Returns both the response and any chart changes
+        """
+        try:
+            print(f"💬 [DataAnalyzer] Processing chat message with chart detection: {message[:50]}...")
+
+            # First, detect if this is a chart type request
+            chart_type = self._detect_chart_type_request(message)
+            
+            # Get the regular AI response
+            ai_response = self.send_chat_message_with_history(message, history)
+            
+            # Prepare response
+            response_data = {
+                "response": ai_response,
+                "chart_change": None
+            }
+            
+            # If a chart type was detected, add it to the response
+            if chart_type:
+                response_data["chart_change"] = {
+                    "chart_type": chart_type,
+                    "reason": f"Switching to {chart_type} chart as requested"
+                }
+                print(f"📊 [DataAnalyzer] Detected chart type request: {chart_type}")
+            
+            return response_data
+
+        except Exception as e:
+            print(f"❌ [DataAnalyzer] Chat error with chart detection: {e}")
+            return {
+                "response": f"Sorry, I encountered an error: {str(e)}",
+                "chart_change": None
+            }
+
+    def _detect_chart_type_request(self, message: str) -> str:
+        """
+        Detect if the user is requesting a specific chart type
+        """
+        message_lower = message.lower()
+        
+        # Chart type keywords
+        chart_types = {
+            "line": ["line chart", "line graph", "line plot", "show line", "create line"],
+            "bar": ["bar chart", "bar graph", "bar plot", "show bar", "create bar"],
+            "scatter": ["scatter plot", "scatter chart", "scatter graph", "show scatter", "create scatter"],
+            "pie": ["pie chart", "pie graph", "show pie", "create pie"]
+        }
+        
+        # Check for chart type requests
+        for chart_type, keywords in chart_types.items():
+            for keyword in keywords:
+                if keyword in message_lower:
+                    return chart_type
+        
+        return None
