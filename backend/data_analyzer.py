@@ -546,7 +546,13 @@ class DataAnalyzer:
             print(f"📊 [DataAnalyzer] Final processed dataset: {len(processed_df):,} rows")
 
             # Convert to records for JSON serialization
-            return self._clean_for_json(processed_df.to_dict('records'))
+            final_data = self._clean_for_json(processed_df.to_dict('records'))
+            print(f"📊 [DataAnalyzer] Final processed data: {len(final_data)} records")
+            if len(final_data) > 0:
+                # Show first few records for debugging
+                sample_records = final_data[:3]
+                print(f"📊 [DataAnalyzer] Sample records: {sample_records}")
+            return final_data
 
         except Exception as e:
             print(f"❌ [DataAnalyzer] Error processing full dataset: {e}")
@@ -601,4 +607,8 @@ class DataAnalyzer:
 
         except Exception as e:
             # Return original data if processing fails
-            return self._clean_for_json(df.to_dict('records')[:100])
+            print(f"🚨 [DataAnalyzer] Processing failed with error: {e}")
+            print(f"🚨 [DataAnalyzer] Returning first 100 records as fallback")
+            fallback_data = self._clean_for_json(df.to_dict('records')[:100])
+            print(f"🚨 [DataAnalyzer] Fallback data: {len(fallback_data)} records")
+            return fallback_data
