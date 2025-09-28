@@ -95,7 +95,7 @@ class DataAnalyzer:
             "recommendation": self._clean_for_json(ai_recommendation),
             "processed_data": self._clean_for_json(full_processed_data),  # Full dataset
             "sample_data": self._clean_for_json(sample_processed_data),   # Sample for debugging
-            "raw_data": self._clean_for_json(combined_df.to_dict('records')[:100]),
+            "raw_data": self._clean_for_json(combined_df.to_dict('records')),
             "sampling_info": {
                 "original_rows": file_info['rows'],
                 "sample_rows": len(combined_df),
@@ -480,7 +480,7 @@ class DataAnalyzer:
                 "x_label": categorical_cols[0],
                 "y_label": numeric_cols[0],
                 "reasoning": "Categorical vs numeric data",
-                "data_processing": {"aggregate": "sum", "group_by": categorical_cols[0], "sort_by": None, "limit": 20}
+                "data_processing": {"aggregate": "sum", "group_by": categorical_cols[0], "sort_by": None, "limit": None}
             }
         else:
             # Default to first two columns
@@ -531,17 +531,8 @@ class DataAnalyzer:
             if processing.get("sort_by") and processing["sort_by"] in processed_df.columns:
                 processed_df = processed_df.sort_values(processing["sort_by"])
 
-            # For visualization, limit to reasonable number of points
-            # But much higher than sample limit
-            max_chart_points = 10000  # Reasonable for most chart libraries
-            if len(processed_df) > max_chart_points:
-                print(f"📊 [DataAnalyzer] Limiting to {max_chart_points:,} points for chart performance")
-                # For time series, sample evenly across the data
-                if recommendation.get("x_axis") in processed_df.columns:
-                    step = len(processed_df) // max_chart_points
-                    processed_df = processed_df.iloc[::step]
-                else:
-                    processed_df = processed_df.head(max_chart_points)
+            # No limits - show all data
+            print(f"📊 [DataAnalyzer] Processing all {len(processed_df):,} rows without limits")
 
             print(f"📊 [DataAnalyzer] Final processed dataset: {len(processed_df):,} rows")
 
@@ -614,7 +605,7 @@ class DataAnalyzer:
         except Exception as e:
             # Return original data if processing fails
             print(f"🚨 [DataAnalyzer] Processing failed with error: {e}")
-            print(f"🚨 [DataAnalyzer] Returning first 100 records as fallback")
-            fallback_data = self._clean_for_json(df.to_dict('records')[:100])
+            print(f"🚨 [DataAnalyzer] Returning all records as fallback")
+            fallback_data = self._clean_for_json(df.to_dict('records'))
             print(f"🚨 [DataAnalyzer] Fallback data: {len(fallback_data)} records")
             return fallback_data
