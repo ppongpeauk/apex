@@ -164,6 +164,14 @@ struct ContentView: View {
           Text(data.reasoning)
             .font(.caption)
             .foregroundColor(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(.windowBackgroundColor))
+            .overlay(
+              RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.white.opacity(0.8), lineWidth: 1)
+            )
+            .cornerRadius(6)
         }
       }
       .padding()

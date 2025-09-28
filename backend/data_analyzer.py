@@ -8,6 +8,9 @@ from config import OPENAI_API_KEY
 
 class DataAnalyzer:
     def __init__(self):
+        print(
+            f"🔑 [DataAnalyzer] Using API key: {OPENAI_API_KEY[:12] if OPENAI_API_KEY else 'None'}...{OPENAI_API_KEY[-4:] if OPENAI_API_KEY and len(OPENAI_API_KEY) > 16 else ''}"
+        )
         self.client = OpenAI(api_key=OPENAI_API_KEY)
 
     def analyze_csv(self, file_path: str) -> Dict[str, Any]:
@@ -407,7 +410,31 @@ class DataAnalyzer:
                 temperature=0.1,
             )
 
-            recommendation = json.loads(response.choices[0].message.content)
+            # Debug: Check the raw response
+            raw_content = response.choices[0].message.content
+            print(
+                f"🤖 [DataAnalyzer] Raw OpenAI response length: {len(raw_content) if raw_content else 0}"
+            )
+            print(
+                f"🤖 [DataAnalyzer] Raw OpenAI response preview: {raw_content[:100] if raw_content else 'EMPTY'}"
+            )
+
+            if not raw_content or raw_content.strip() == "":
+                raise ValueError("OpenAI returned empty response")
+
+            # Strip markdown code blocks if present (OpenAI often wraps JSON in ```json ... ```)
+            clean_content = raw_content.strip()
+            if clean_content.startswith("```json"):
+                clean_content = clean_content[7:]  # Remove ```json
+            if clean_content.startswith("```"):
+                clean_content = clean_content[3:]  # Remove ```
+            if clean_content.endswith("```"):
+                clean_content = clean_content[:-3]  # Remove closing ```
+            clean_content = clean_content.strip()
+
+            print(f"🧹 [DataAnalyzer] Cleaned content preview: {clean_content[:100]}")
+
+            recommendation = json.loads(clean_content)
 
             # Validate recommendation to prevent same-axis assignments
             recommendation = self._validate_recommendation(recommendation, data_info)
