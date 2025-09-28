@@ -274,8 +274,8 @@ extension ChartVisualizationView {
       return BarChartItem(label: key, value: sum)
     }
 
-    // Sort by value (descending) and limit to 20 items for better visualization
-    return Array(items.sorted { $0.value > $1.value }.prefix(20))
+    // Sort by value (descending) and return all items
+    return items.sorted { $0.value > $1.value }
   }
 
   private func aggregateDataForLineChart() -> [LineChartItem] {
@@ -327,16 +327,8 @@ extension ChartVisualizationView {
     
     print("📊 [LineChart] Sorted data range: x=\(sorted.first?.xValue ?? 0) to \(sorted.last?.xValue ?? 0)")
 
-    // If we have too many points, sample them evenly (limit to 100 for better visualization)
-    if sorted.count > 100 {
-      let step = max(1, sorted.count / 100)
-      let sampled = stride(from: 0, to: sorted.count, by: step).compactMap { index in
-        index < sorted.count ? sorted[index] : nil
-      }
-      print("📊 [LineChart] Sampled \(sampled.count) points from \(sorted.count)")
-      return sampled
-    }
-
+    // Return all data points for complete visualization
+    print("📊 [LineChart] Returning all \(sorted.count) data points")
     return sorted
   }
   
