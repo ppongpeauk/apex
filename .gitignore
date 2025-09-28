@@ -68,7 +68,7 @@ Temporary Items
 Packages/
 Package.resolved
 .swiftpm/
-*.xcodeproj/
+#*.xcodeproj/
 DerivedData/
 *.hmap
 *.ipa
