@@ -30,15 +30,11 @@ class DataVisualizationViewModel: ObservableObject {
         Task {
             do {
                 let result = try await apiService.analyzeCSV(fileURL: url)
-                await MainActor.run {
-                    self.chartData = result
-                    self.isLoading = false
-                }
+                self.chartData = result
+                self.isLoading = false
             } catch {
-                await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                    self.isLoading = false
-                }
+                self.errorMessage = error.localizedDescription
+                self.isLoading = false
             }
         }
     }
@@ -82,7 +78,7 @@ class DataVisualizationViewModel: ObservableObject {
 }
 
 // MARK: - Data Models
-struct ChartData {
+struct ChartData: Equatable {
     let chartType: String
     let title: String
     let xLabel: String?
@@ -90,6 +86,17 @@ struct ChartData {
     let reasoning: String
     let dataPoints: [DataPoint]
     let originalData: [String: Any]
+    
+    // Custom equality implementation to handle [String: Any]
+    static func == (lhs: ChartData, rhs: ChartData) -> Bool {
+        return lhs.chartType == rhs.chartType &&
+               lhs.title == rhs.title &&
+               lhs.xLabel == rhs.xLabel &&
+               lhs.yLabel == rhs.yLabel &&
+               lhs.reasoning == rhs.reasoning &&
+               lhs.dataPoints == rhs.dataPoints &&
+               NSDictionary(dictionary: lhs.originalData).isEqual(to: rhs.originalData)
+    }
     
     init(from apiResponse: APIResponse) {
         self.chartType = apiResponse.analysis.recommendation.chartType
@@ -136,12 +143,20 @@ struct ChartData {
     }
 }
 
-struct DataPoint: Identifiable {
+struct DataPoint: Identifiable, Equatable {
     let id = UUID()
     let x: ChartValue
     let y: ChartValue?
     let z: ChartValue?
     let label: String?
+    
+    // Custom equality implementation (ignoring id since it's always unique)
+    static func == (lhs: DataPoint, rhs: DataPoint) -> Bool {
+        return lhs.x == rhs.x &&
+               lhs.y == rhs.y &&
+               lhs.z == rhs.z &&
+               lhs.label == rhs.label
+    }
     
     init?(from dict: [String: Any], xKey: String?, yKey: String?, zKey: String?) {
         guard let xKey = xKey,
@@ -154,7 +169,7 @@ struct DataPoint: Identifiable {
     }
 }
 
-enum ChartValue {
+enum ChartValue: Equatable {
     case string(String)
     case double(Double)
     case int(Int)

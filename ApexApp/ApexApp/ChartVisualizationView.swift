@@ -11,23 +11,34 @@ import SwiftUI
 
 struct ChartVisualizationView: View {
   let chartData: ChartData
+  @State private var scrollOffset: CGFloat = 0
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
-      // Chart content
-      Group {
-        switch chartData.chartType {
-        case "bar":
-          barChartView
-        case "line":
-          lineChartView
-        default:
-          lineChartView  // Default to line chart
+      // Chart content with horizontal scrolling
+      ScrollView(.horizontal, showsIndicators: true) {
+        Group {
+          switch chartData.chartType {
+          case "bar":
+            barChartView
+          case "line":
+            lineChartView
+          default:
+            lineChartView  // Default to line chart
+          }
+        }
+        .frame(minHeight: 300)
+        .frame(minWidth: calculateOptimalChartWidth()) // Dynamic width based on data points
+        .chartBackground { chartProxy in
+          Color.clear
         }
       }
-      .frame(minHeight: 300)
-      .chartBackground { chartProxy in
-        Color.clear
+      .scrollIndicators(.visible)
+      .frame(maxHeight: 400)
+
+      // Scroll position indicator
+      if chartData.dataPoints.count > 20 {
+        scrollPositionIndicator
       }
 
       // Data summary
@@ -38,22 +49,22 @@ struct ChartVisualizationView: View {
 
   // MARK: - Line Chart
   private var lineChartView: some View {
-    let processedData = aggregateDataForLineChart()
-
-    return Chart {
-      ForEach(Array(processedData.enumerated()), id: \.offset) { index, item in
-        LineMark(
-          x: .value(chartData.xLabel ?? "X", item.xValue),
-          y: .value(chartData.yLabel ?? "Y", item.yValue)
-        )
-        .foregroundStyle(.blue)
-        .symbol(.circle)
-      }
+    let processedData: [LineChartItem] = aggregateDataForLineChart()
+    let xLabel: String = chartData.xLabel ?? "X"
+    let yLabel: String = chartData.yLabel ?? "Y"
+    
+    return Chart(processedData) { item in
+      LineMark(
+        x: .value(xLabel, item.xValue),
+        y: .value(yLabel, item.yValue)
+      )
+      .foregroundStyle(.blue)
+      .symbol(.circle)
     }
-    .chartXAxisLabel(chartData.xLabel ?? "X")
-    .chartYAxisLabel(chartData.yLabel ?? "Y")
+    .chartXAxisLabel(xLabel)
+    .chartYAxisLabel(yLabel)
     .chartXAxis {
-      AxisMarks(values: .automatic(desiredCount: min(processedData.count, 8))) { _ in
+      AxisMarks(values: .automatic(desiredCount: min(processedData.count, 12))) { _ in
         AxisValueLabel()
           .font(.caption2)
       }
@@ -75,19 +86,20 @@ struct ChartVisualizationView: View {
   }
 
   private func regularBarChartView(_ processedData: [BarChartItem]) -> some View {
-    return Chart {
-      ForEach(Array(processedData.enumerated()), id: \.offset) { index, item in
-        BarMark(
-          x: .value(chartData.xLabel ?? "X", item.label),
-          y: .value(chartData.yLabel ?? "Y", item.value)
-        )
-        .foregroundStyle(.blue)
-      }
+    let xLabel: String = chartData.xLabel ?? "X"
+    let yLabel: String = chartData.yLabel ?? "Y"
+    
+    return Chart(processedData) { item in
+      BarMark(
+        x: .value(xLabel, item.label),
+        y: .value(yLabel, item.value)
+      )
+      .foregroundStyle(.blue)
     }
-    .chartXAxisLabel(chartData.xLabel ?? "X")
-    .chartYAxisLabel(chartData.yLabel ?? "Y")
+    .chartXAxisLabel(xLabel)
+    .chartYAxisLabel(yLabel)
     .chartXAxis {
-      AxisMarks(values: .automatic(desiredCount: min(processedData.count, 10))) { _ in
+      AxisMarks(values: .automatic(desiredCount: min(processedData.count, 15))) { _ in
         AxisValueLabel(anchor: .topLeading)
           .font(.caption2)
       }
@@ -101,23 +113,22 @@ struct ChartVisualizationView: View {
 
   private func stackedBarChartView(_ processedData: [StackedBarChartItem]) -> some View {
     let uniqueCategories = Set(processedData.map { $0.category })
+    let xLabel: String = chartData.xLabel ?? "X"
+    let yLabel: String = chartData.yLabel ?? "Y"
+    let uniqueXValues = unique(processedData.map { $0.xValue })
 
-    return Chart {
-      ForEach(Array(processedData.enumerated()), id: \.offset) { index, item in
-        BarMark(
-          x: .value(chartData.xLabel ?? "X", item.xValue),
-          y: .value(chartData.yLabel ?? "Y", item.yValue)
-        )
-        .foregroundStyle(by: .value("Category", item.category))
-        .position(by: .value("Category", item.category))
-      }
+    return Chart(processedData) { item in
+      BarMark(
+        x: .value(xLabel, item.xValue),
+        y: .value(yLabel, item.yValue)
+      )
+      .foregroundStyle(by: .value("Category", item.category))
+      .position(by: .value("Category", item.category))
     }
-    .chartXAxisLabel(chartData.xLabel ?? "X")
-    .chartYAxisLabel(chartData.yLabel ?? "Y")
+    .chartXAxisLabel(xLabel)
+    .chartYAxisLabel(yLabel)
     .chartXAxis {
-      AxisMarks(
-        values: .automatic(desiredCount: min(processedData.map { $0.xValue }.unique().count, 10))
-      ) { _ in
+      AxisMarks(values: .automatic(desiredCount: min(uniqueXValues.count, 15))) { _ in
         AxisValueLabel(anchor: .topLeading)
           .font(.caption2)
       }
@@ -138,6 +149,25 @@ struct ChartVisualizationView: View {
         }
       }
     }
+  }
+
+  // MARK: - Scroll Position Indicator
+  private var scrollPositionIndicator: some View {
+    HStack {
+      Image(systemName: "arrow.left.and.right")
+        .foregroundColor(.secondary)
+      Text("Scroll horizontally to view all data points")
+        .font(.caption)
+        .foregroundColor(.secondary)
+      Spacer()
+      Text("\(chartData.dataPoints.count) total points")
+        .font(.caption)
+        .foregroundColor(.secondary)
+    }
+    .padding(.horizontal)
+    .padding(.vertical, 8)
+    .background(Color(.windowBackgroundColor))
+    .cornerRadius(6)
   }
 
   // MARK: - Data Summary
@@ -166,20 +196,42 @@ struct ChartVisualizationView: View {
 
 // MARK: - Helper Functions
 extension ChartVisualizationView {
+  
+  // Helper extension for Array to get unique values
+  private func unique<T: Hashable>(_ array: [T]) -> [T] {
+    return Array(Set(array))
+  }
+  
+  // Calculate optimal chart width based on data characteristics
+  private func calculateOptimalChartWidth() -> CGFloat {
+    let dataPointCount = chartData.dataPoints.count
+    let baseWidth: CGFloat = 600
+    
+    // For bar charts, we need more space per data point
+    if chartData.chartType == "bar" {
+      return max(baseWidth, CGFloat(dataPointCount) * 60)
+    }
+    
+    // For line charts, we can be more compact
+    return max(baseWidth, CGFloat(dataPointCount) * 40)
+  }
 
   // MARK: - Data Processing
-  struct BarChartItem {
+  struct BarChartItem: Identifiable {
+    let id = UUID()
     let label: String
     let value: Double
   }
 
-  struct StackedBarChartItem {
+  struct StackedBarChartItem: Identifiable {
+    let id = UUID()
     let xValue: String
     let category: String
     let yValue: Double
   }
 
-  struct LineChartItem {
+  struct LineChartItem: Identifiable {
+    let id = UUID()
     let xValue: Double
     let yValue: Double
   }
