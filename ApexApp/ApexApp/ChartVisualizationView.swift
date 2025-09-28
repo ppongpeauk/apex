@@ -279,34 +279,71 @@ extension ChartVisualizationView {
   }
 
   private func aggregateDataForLineChart() -> [LineChartItem] {
-    // For line charts, we want to show progression over X-axis using actual values
-    var items: [LineChartItem] = []
+    // For line charts, we need to handle different data types appropriately
+    // For categorical data (like countries), we should aggregate like bar charts
+    // For temporal data (like dates), we should show progression
     
     print("🔍 [LineChart] Processing \(chartData.dataPoints.count) data points")
     
-    for (index, point) in chartData.dataPoints.enumerated() {
-      guard let y = point.y else { 
-        print("⚠️ [LineChart] Skipping point \(index): no y value")
-        continue 
+    // Check if we're dealing with categorical data by looking at unique x-values
+    let uniqueXValues = Set(chartData.dataPoints.map { $0.x.stringValue })
+    let isCategoricalData = uniqueXValues.count < Int(Double(chartData.dataPoints.count) * 0.5) // If less than 50% unique, likely categorical
+    
+    print("🔍 [LineChart] Unique x-values: \(uniqueXValues.count), Total points: \(chartData.dataPoints.count)")
+    print("🔍 [LineChart] Is categorical data: \(isCategoricalData)")
+    
+    if isCategoricalData {
+      // For categorical data (like countries), aggregate like bar charts
+      var groupedData: [String: [Double]] = [:]
+      
+      for point in chartData.dataPoints {
+        guard let y = point.y else { continue }
+        
+        let xKey = point.x.stringValue
+        let yValue = y.doubleValue
+        
+        if groupedData[xKey] == nil {
+          groupedData[xKey] = []
+        }
+        groupedData[xKey]?.append(yValue)
+      }
+      
+      // Convert to aggregated items (sum by default)
+      let items = groupedData.compactMap { (key, values) -> LineChartItem? in
+        guard !values.isEmpty else { return nil }
+        let sum = values.reduce(0, +)
+        print("📊 [LineChart] Country \(key): \(values.count) points, total=\(sum)")
+        return LineChartItem(xValue: key, yValue: sum)
+      }
+      
+      // Sort by value (descending) for categorical data
+      let sorted = items.sorted { (item1: LineChartItem, item2: LineChartItem) in
+        item1.yValue > item2.yValue
+      }
+      print("📊 [LineChart] Returning \(sorted.count) aggregated countries")
+      return sorted
+    } else {
+      // For temporal/sequential data, process each point individually
+      var items: [LineChartItem] = []
+      
+      for (index, point) in chartData.dataPoints.enumerated() {
+        guard let y = point.y else { 
+          print("⚠️ [LineChart] Skipping point \(index): no y value")
+          continue 
+        }
+
+        let xValue = point.x.stringValue
+        let yValue = y.doubleValue
+        
+        print("📊 [LineChart] Point \(index): x=\(xValue), y=\(yValue)")
+        items.append(LineChartItem(xValue: xValue, yValue: yValue))
       }
 
-      // Use the string representation to preserve actual date/number formatting
-      let xValue = point.x.stringValue
-      let yValue = y.doubleValue
-      
-      print("📊 [LineChart] Point \(index): x=\(xValue), y=\(yValue)")
-      items.append(LineChartItem(xValue: xValue, yValue: yValue))
+      // Sort by X value for proper line progression
+      let sorted = items.sorted { $0.xValue < $1.xValue }
+      print("📊 [LineChart] Returning all \(sorted.count) sequential data points")
+      return sorted
     }
-
-    // Sort by X value for proper line progression
-    let sorted = items.sorted { 
-      // Sort by the string representation for consistent ordering
-      $0.xValue < $1.xValue 
-    }
-    
-    print("📊 [LineChart] Sorted data range: x=\(sorted.first?.xValue ?? "nil") to \(sorted.last?.xValue ?? "nil")")
-    print("📊 [LineChart] Returning all \(sorted.count) data points")
-    return sorted
   }
   
   // Helper function to parse date strings
