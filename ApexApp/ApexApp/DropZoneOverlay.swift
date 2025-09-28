@@ -147,7 +147,7 @@ struct DropZoneOverlayView: View {
     _ = provider.loadObject(ofClass: URL.self) { url, _ in
       guard let url = url, url.pathExtension.lowercased() == "csv" else { return }
       DispatchQueue.main.async {
-        NSApp.activate(ignoringOtherApps: true)
+        bringAppToFront()
         viewModel.processFile(url: url)
       }
     }
@@ -156,6 +156,14 @@ struct DropZoneOverlayView: View {
 
   private func bringAppToFront() {
     NSApp.activate(ignoringOtherApps: true)
+
+    // Find the main window and bring it to front
+    if let mainWindow = NSApp.windows.first(where: { $0.isVisible || $0.isMiniaturized }) {
+      if mainWindow.isMiniaturized {
+        mainWindow.deminiaturize(nil)
+      }
+      mainWindow.makeKeyAndOrderFront(nil)
+    }
   }
 }
 

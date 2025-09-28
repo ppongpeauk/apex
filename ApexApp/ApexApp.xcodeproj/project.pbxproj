@@ -24,7 +24,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		C2D06AA42E8859E3006A3560 /* ApexApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = ApexApp.app; path = ChoppedShi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C2D06AA42E8859E3006A3560 /* ChoppedShi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChoppedShi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C2D06AB12E8859E5006A3560 /* ApexAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ApexAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C2D06ABB2E8859E5006A3560 /* ApexAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ApexAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -85,7 +85,7 @@
 		C2D06AA52E8859E3006A3560 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				C2D06AA42E8859E3006A3560 /* ApexApp.app */,
+				C2D06AA42E8859E3006A3560 /* ChoppedShi.app */,
 				C2D06AB12E8859E5006A3560 /* ApexAppTests.xctest */,
 				C2D06ABB2E8859E5006A3560 /* ApexAppUITests.xctest */,
 			);
@@ -114,7 +114,7 @@
 			packageProductDependencies = (
 			);
 			productName = ChoppedShi;
-			productReference = C2D06AA42E8859E3006A3560 /* ApexApp.app */;
+			productReference = C2D06AA42E8859E3006A3560 /* ChoppedShi.app */;
 			productType = "com.apple.product-type.application";
 		};
 		C2D06AB02E8859E5006A3560 /* ApexAppTests */ = {
@@ -398,7 +398,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 354DA25GVF;
+				DEVELOPMENT_TEAM = F8FHD2SSRY;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -431,7 +431,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 354DA25GVF;
+				DEVELOPMENT_TEAM = F8FHD2SSRY;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
