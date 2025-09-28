@@ -53,6 +53,12 @@ struct ChartVisualizationView: View {
     let xLabel: String = chartData.xLabel ?? "X"
     let yLabel: String = chartData.yLabel ?? "Y"
     
+    print("📊 [LineChart] Rendering chart with \(processedData.count) points")
+    if let first = processedData.first, let last = processedData.last {
+      print("📊 [LineChart] X range: \(first.xValue) to \(last.xValue)")
+      print("📊 [LineChart] Y range: \(first.yValue) to \(last.yValue)")
+    }
+    
     return Chart(processedData) { item in
       LineMark(
         x: .value(xLabel, item.xValue),
@@ -60,13 +66,22 @@ struct ChartVisualizationView: View {
       )
       .foregroundStyle(.blue)
       .symbol(.circle)
+      .symbolSize(50)
     }
     .chartXAxisLabel(xLabel)
     .chartYAxisLabel(yLabel)
     .chartXAxis {
-      AxisMarks(values: .automatic(desiredCount: min(processedData.count, 12))) { _ in
+      AxisMarks(values: .automatic(desiredCount: min(processedData.count, 10))) { value in
         AxisValueLabel()
           .font(.caption2)
+        AxisGridLine()
+      }
+    }
+    .chartYAxis {
+      AxisMarks { value in
+        AxisValueLabel()
+          .font(.caption2)
+        AxisGridLine()
       }
     }
   }
@@ -266,28 +281,88 @@ extension ChartVisualizationView {
   private func aggregateDataForLineChart() -> [LineChartItem] {
     // For line charts, we want to show progression over X-axis
     var items: [LineChartItem] = []
+    
+    print("🔍 [LineChart] Processing \(chartData.dataPoints.count) data points")
+    
+    for (index, point) in chartData.dataPoints.enumerated() {
+      guard let y = point.y else { 
+        print("⚠️ [LineChart] Skipping point \(index): no y value")
+        continue 
+      }
 
-    for point in chartData.dataPoints {
-      guard let y = point.y else { continue }
-
-      let xValue = point.x.doubleValue
+      // Handle different x-axis data types properly
+      let xValue: Double
+      switch point.x {
+      case .date(let date):
+        // For dates, use time interval since 1970
+        xValue = date.timeIntervalSince1970
+        print("📅 [LineChart] Point \(index): Date \(date) -> \(xValue)")
+      case .double(let value):
+        xValue = value
+        print("🔢 [LineChart] Point \(index): Double \(value)")
+      case .int(let value):
+        xValue = Double(value)
+        print("🔢 [LineChart] Point \(index): Int \(value) -> \(xValue)")
+      case .string(let str):
+        // Try to parse as number first, then as date
+        if let numValue = Double(str) {
+          xValue = numValue
+          print("🔢 [LineChart] Point \(index): String '\(str)' -> Number \(xValue)")
+        } else if let dateValue = parseDateString(str) {
+          xValue = dateValue.timeIntervalSince1970
+          print("📅 [LineChart] Point \(index): String '\(str)' -> Date \(dateValue) -> \(xValue)")
+        } else {
+          // For non-numeric strings, use index as x-value
+          xValue = Double(index)
+          print("⚠️ [LineChart] Point \(index): String '\(str)' -> Index \(xValue)")
+        }
+      }
+      
       let yValue = y.doubleValue
-
       items.append(LineChartItem(xValue: xValue, yValue: yValue))
     }
 
     // Sort by X value and limit data points
     let sorted = items.sorted { $0.xValue < $1.xValue }
+    
+    print("📊 [LineChart] Sorted data range: x=\(sorted.first?.xValue ?? 0) to \(sorted.last?.xValue ?? 0)")
 
-    // If we have too many points, sample them evenly (limit to 50 for performance)
-    if sorted.count > 50 {
-      let step = sorted.count / 50
-      return stride(from: 0, to: sorted.count, by: step).compactMap { index in
+    // If we have too many points, sample them evenly (limit to 100 for better visualization)
+    if sorted.count > 100 {
+      let step = max(1, sorted.count / 100)
+      let sampled = stride(from: 0, to: sorted.count, by: step).compactMap { index in
         index < sorted.count ? sorted[index] : nil
       }
+      print("📊 [LineChart] Sampled \(sampled.count) points from \(sorted.count)")
+      return sampled
     }
 
     return sorted
+  }
+  
+  // Helper function to parse date strings
+  private func parseDateString(_ dateString: String) -> Date? {
+    let formatters = [
+      "yyyy-MM-dd",
+      "yyyy-MM-dd HH:mm:ss",
+      "MM/dd/yyyy",
+      "dd/MM/yyyy",
+      "yyyy-MM-dd'T'HH:mm:ss",
+      "yyyy-MM-dd'T'HH:mm:ss.SSS",
+      "yyyy-MM-dd'T'HH:mm:ss'Z'"
+    ]
+    
+    for format in formatters {
+      let formatter = DateFormatter()
+      formatter.dateFormat = format
+      if let date = formatter.date(from: dateString) {
+        return date
+      }
+    }
+    
+    // Try ISO8601 as fallback
+    let iso8601Formatter = ISO8601DateFormatter()
+    return iso8601Formatter.date(from: dateString)
   }
 
   private func shouldUseStackedBarChart() -> Bool {
