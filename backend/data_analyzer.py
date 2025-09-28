@@ -385,7 +385,7 @@ class DataAnalyzer:
             "title": "descriptive chart title",
             "x_label": "x-axis label",
             "y_label": "y-axis label (null if not applicable)",
-            "reasoning": "explanation of why this chart type was chosen",
+            "reasoning": "concise yet thorough explanation on why this chart type was chosen for the provided dataset",
             "data_processing": {{
                 "aggregate": "sum/mean/count/none - how to aggregate data if needed",
                 "group_by": "column to group by (null if not applicable)",
@@ -730,3 +730,74 @@ class DataAnalyzer:
         except Exception as e:
             # Return original data if processing fails
             return self._clean_for_json(df.to_dict("records")[:100])
+
+    def send_chat_message(self, message: str) -> str:
+        """
+        Send a chat message to OpenAI and return the response
+        """
+        try:
+            print(
+                f"💬 [DataAnalyzer] Sending chat message to OpenAI: {message[:50]}..."
+            )
+
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a helpful AI assistant for data visualization. You help users understand their data and create meaningful visualizations. Be concise and helpful.",
+                    },
+                    {"role": "user", "content": message},
+                ],
+                max_tokens=500,
+                temperature=0.7,
+            )
+
+            ai_response = response.choices[0].message.content
+            print(f"✅ [DataAnalyzer] Received OpenAI response: {ai_response[:50]}...")
+
+            return ai_response
+
+        except Exception as e:
+            print(f"❌ [DataAnalyzer] Chat error: {e}")
+            return f"Sorry, I encountered an error: {str(e)}"
+
+    def send_chat_message_with_history(self, message: str, history: list) -> str:
+        """
+        Send a chat message to OpenAI with conversation history and return the response
+        """
+        try:
+            print(
+                f"💬 [DataAnalyzer] Sending chat message with {len(history)} history items"
+            )
+
+            # Build messages array with system prompt, history, and current message
+            messages = [
+                {
+                    "role": "system",
+                    "content": "You are a helpful AI assistant for data visualization. You help users understand their data and create meaningful visualizations. Be concise and helpful.",
+                }
+            ]
+
+            # Add conversation history
+            for item in history[-10:]:  # Only last 10 messages to avoid token limits
+                messages.append({"role": item.role, "content": item.content})
+
+            # Add current message
+            messages.append({"role": "user", "content": message})
+
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=messages,
+                max_tokens=500,
+                temperature=0.7,
+            )
+
+            ai_response = response.choices[0].message.content
+            print(f"✅ [DataAnalyzer] Received OpenAI response with history context")
+
+            return ai_response
+
+        except Exception as e:
+            print(f"❌ [DataAnalyzer] Chat error with history: {e}")
+            return f"Sorry, I encountered an error: {str(e)}"

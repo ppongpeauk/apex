@@ -30,8 +30,6 @@ struct ChartVisualizationView: View {
         Color.clear
       }
 
-      // Data summary
-      dataSummaryView
     }
     .padding()
   }
@@ -140,18 +138,6 @@ struct ChartVisualizationView: View {
     }
   }
 
-  // MARK: - Data Summary
-  private var dataSummaryView: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      Text(chartData.reasoning)
-        .font(.caption)
-        .foregroundColor(.primary)
-        .multilineTextAlignment(.leading)
-    }
-    .padding()
-    .background(Color.gray)
-    .cornerRadius(8)
-  }
 }
 
 // MARK: - Helper Functions

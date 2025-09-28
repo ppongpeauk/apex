@@ -15,18 +15,18 @@ class DataVisualizationViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var chartData: ChartData?
     @Published var errorMessage: String?
-    
+
     private let apiService = APIService()
-    
+
     func processFile(url: URL) {
         guard url.pathExtension.lowercased() == "csv" else {
             errorMessage = "Please select a CSV file"
             return
         }
-        
+
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
                 let result = try await apiService.analyzeCSV(fileURL: url)
@@ -42,21 +42,21 @@ class DataVisualizationViewModel: ObservableObject {
             }
         }
     }
-    
+
     func selectFile() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.commaSeparatedText]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
-        
+
         if panel.runModal() == .OK {
             if let url = panel.url {
                 processFile(url: url)
             }
         }
     }
-    
+
     func clearData() {
         chartData = nil
         errorMessage = nil
@@ -90,7 +90,7 @@ struct ChartData {
     let reasoning: String
     let dataPoints: [DataPoint]
     let originalData: [String: Any]
-    
+
     init(from apiResponse: APIResponse) {
         self.chartType = apiResponse.analysis.recommendation.chartType
         self.title = apiResponse.analysis.recommendation.title
@@ -107,7 +107,7 @@ struct ChartData {
                      yKey: apiResponse.analysis.recommendation.yAxis,
                      zKey: apiResponse.analysis.recommendation.zAxis)
         }
-        
+
         self.originalData = [
             "filename": apiResponse.filename,
             "shape": apiResponse.analysis.dataInfo.shape,
@@ -142,7 +142,7 @@ struct DataPoint: Identifiable {
     let y: ChartValue?
     let z: ChartValue?
     let label: String?
-    
+
     init?(from dict: [String: Any], xKey: String?, yKey: String?, zKey: String?) {
         guard let xKey = xKey,
               let xValue = dict[xKey] else { return nil }
@@ -159,7 +159,7 @@ enum ChartValue {
     case double(Double)
     case int(Int)
     case date(Date)
-    
+
     init(from value: Any?) {
         switch value {
         case let str as String:
@@ -181,7 +181,7 @@ enum ChartValue {
             self = .string(String(describing: value ?? ""))
         }
     }
-    
+
     var doubleValue: Double {
         switch self {
         case .double(let value): return value
@@ -190,7 +190,7 @@ enum ChartValue {
         case .date(let date): return date.timeIntervalSince1970
         }
     }
-    
+
     var stringValue: String {
         switch self {
         case .string(let value): return value
@@ -254,7 +254,7 @@ struct ChartRecommendation: Codable {
     let xLabel: String?
     let yLabel: String?
     let reasoning: String
-    
+
     enum CodingKeys: String, CodingKey {
         case chartType = "chart_type"
         case xAxis = "x_axis"
@@ -270,14 +270,14 @@ struct ChartRecommendation: Codable {
 // Helper for handling Any values in JSON
 struct AnyCodable: Codable {
     let value: Any
-    
+
     init(_ value: Any) {
         self.value = value
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        
+
         if let bool = try? container.decode(Bool.self) {
             value = bool
         } else if let int = try? container.decode(Int.self) {
@@ -292,10 +292,10 @@ struct AnyCodable: Codable {
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported type")
         }
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        
+
         switch value {
         case let bool as Bool:
             try container.encode(bool)

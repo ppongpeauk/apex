@@ -18,26 +18,59 @@ struct ContentView: View {
   @State private var selectedXAxis: String = ""
   @State private var selectedYAxis: String = ""
   @State private var availableColumns: [String] = []
+  @State private var isSidebarCollapsed: Bool = false
 
   var body: some View {
-    VStack(spacing: 0) {
-      // Header
-      headerView
+    if viewModel.chartData != nil {
+      // Data visualization page with chat sidebar
+      HStack(spacing: 0) {
+        // Main content area
+        VStack(spacing: 0) {
+          // Header
+          headerView
 
-      // Main content area
-      if viewModel.isLoading {
-        loadingView
-      } else if let chartData = viewModel.chartData {
-        chartView(chartData)
-          .onAppear {
-            initializeChartControls(chartData)
+          // Main content area
+          if viewModel.isLoading {
+            loadingView
+          } else if let chartData = viewModel.chartData {
+            chartView(chartData)
+              .onAppear {
+                initializeChartControls(chartData)
+              }
           }
-      } else {
-        dropZoneView
+        }
+        .frame(minWidth: 600)
+        .background(Color(.windowBackgroundColor))
+
+        // Divider (only show when sidebar is visible)
+        if !isSidebarCollapsed {
+          Rectangle()
+            .fill(Color.white.opacity(0.3))
+            .frame(width: 0.5)
+            .padding(.vertical, 20)
+
+          // Chat sidebar (only when chart data exists and not collapsed)
+          ChatSidebar()
+        }
       }
+      .frame(minWidth: 1100, minHeight: 600)
+      .background(Color(.windowBackgroundColor))
+    } else {
+      // Upload/loading page without chat sidebar
+      VStack(spacing: 0) {
+        // Header
+        headerView
+
+        // Main content area
+        if viewModel.isLoading {
+          loadingView
+        } else {
+          dropZoneView
+        }
+      }
+      .frame(minWidth: 800, minHeight: 600)
+      .background(Color(.windowBackgroundColor))
     }
-    .frame(minWidth: 800, minHeight: 600)
-    .background(Color(.windowBackgroundColor))
   }
 
   // MARK: - Header View
@@ -54,10 +87,24 @@ struct ContentView: View {
       Spacer()
 
       if viewModel.chartData != nil {
-        Button("Clear") {
-          viewModel.clearData()
+        VStack(spacing: 8) {
+          Button("Clear") {
+            viewModel.clearData()
+          }
+          .buttonStyle(.bordered)
+          .frame(minWidth: 60)
+
+          Button(action: {
+            withAnimation(.easeInOut(duration: 0.3)) {
+              isSidebarCollapsed.toggle()
+            }
+          }) {
+            Image(systemName: isSidebarCollapsed ? "chevron.left" : "chevron.right")
+              .font(.system(size: 12))
+          }
+          .buttonStyle(.bordered)
+          .frame(minWidth: 60)
         }
-        .buttonStyle(.bordered)
       }
     }
     .padding()
@@ -160,19 +207,6 @@ struct ContentView: View {
             .cornerRadius(4)
         }
 
-        if !data.reasoning.isEmpty {
-          Text(data.reasoning)
-            .font(.caption)
-            .foregroundColor(.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(.windowBackgroundColor))
-            .overlay(
-              RoundedRectangle(cornerRadius: 6)
-                .stroke(Color.white.opacity(0.8), lineWidth: 1)
-            )
-            .cornerRadius(6)
-        }
       }
       .padding()
       .background(Color(.windowBackgroundColor))
