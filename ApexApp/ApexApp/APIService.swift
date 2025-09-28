@@ -21,7 +21,7 @@ class APIService {
         config.networkServiceType = .default
         self.session = URLSession(configuration: config)
     }
-    
+
     func analyzeCSV(fileURL: URL) async throws -> ChartData {
         print("🚀 [APIService] Starting CSV analysis for file: \(fileURL.lastPathComponent)")
 
@@ -125,7 +125,7 @@ class APIService {
             throw APIError.networkError(error)
         }
     }
-    
+
     func checkServerHealth() async -> Bool {
         print("🏥 [APIService] Checking server health...")
 
@@ -157,6 +157,66 @@ class APIService {
         print("❌ [APIService] All health check attempts failed")
         return false
     }
+
+    func sendChatMessage(_ message: String, history: [[String: String]] = []) async throws -> String {
+        print("💬 [APIService] Sending chat message: \(message)")
+
+        let urls = [
+            URL(string: "\(baseURL)/chat")!,
+            URL(string: "\(fallbackURL)/chat")!
+        ]
+
+        for (index, url) in urls.enumerated() {
+            print("📡 [APIService] Chat attempt \(index + 1)/\(urls.count) to: \(url)")
+
+            do {
+                return try await performChatRequest(message: message, history: history, targetURL: url)
+            } catch {
+                print("❌ [APIService] Chat attempt \(index + 1) failed: \(error)")
+                if index == urls.count - 1 {
+                    throw error
+                }
+                print("🔄 [APIService] Trying next URL...")
+            }
+        }
+
+        throw APIError.networkError(NSError(domain: "APIService", code: -1, userInfo: [NSLocalizedDescriptionKey: "All chat attempts failed"]))
+    }
+
+    private func performChatRequest(message: String, history: [[String: String]] = [], targetURL: URL) async throws -> String {
+        var request = URLRequest(url: targetURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0
+
+        let requestBody: [String: Any] = ["message": message, "history": history]
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        print("🌐 [APIService] Sending chat request...")
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        print("📊 [APIService] Chat response status: \(httpResponse.statusCode)")
+
+        guard httpResponse.statusCode == 200 else {
+            if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let detail = errorData["detail"] as? String {
+                throw APIError.serverError(detail)
+            }
+            throw APIError.httpError(httpResponse.statusCode)
+        }
+
+        if let jsonResponse = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let responseMessage = jsonResponse["response"] as? String {
+            print("✅ [APIService] Received chat response")
+            return responseMessage
+        }
+
+        throw APIError.decodingError(NSError(domain: "APIService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid chat response format"]))
+    }
 }
 
 enum APIError: LocalizedError {
@@ -165,7 +225,7 @@ enum APIError: LocalizedError {
     case httpError(Int)
     case decodingError(Error)
     case networkError(Error)
-    
+
     var errorDescription: String? {
         switch self {
         case .invalidResponse:

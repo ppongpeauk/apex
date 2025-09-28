@@ -10,67 +10,51 @@ import Combine
 import SwiftUI
 
 struct ChartVisualizationView: View {
-    let chartData: ChartData
-  @State private var scrollOffset: CGFloat = 0
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-      // Chart content with horizontal scrolling
-      ScrollView(.horizontal, showsIndicators: true) {
-            Group {
-                switch chartData.chartType {
-          case "bar":
-            barChartView
-                case "line":
-                    lineChartView
-                case "scatter":
-                    scatterChartView
-                case "pie":
-                    pieChartView
-                default:
-            lineChartView  // Default to line chart
-                }
-            }
-            .frame(minHeight: 300)
-        .frame(minWidth: calculateOptimalChartWidth()) // Dynamic width based on data points
-            .chartBackground { chartProxy in
-                Color.clear
+  let chartData: ChartData
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      // Chart content
+      Group {
+        switch chartData.chartType {
+        case "bar":
+          barChartView
+        case "line":
+          lineChartView
+        case "scatter":
+          scatterChartView
+        case "pie":
+          pieChartView
+        default:
+          lineChartView  // Default to line chart
         }
       }
-      .scrollIndicators(.visible)
-      .frame(maxHeight: 400)
+      .frame(minHeight: 300)
+      .chartBackground { chartProxy in
+        Color.clear
+      }
 
-      // Scroll position indicator
-      if getDisplayedDataPointCount() > 20 {
-        scrollPositionIndicator
-            }
-            
-            // Data summary
-            dataSummaryView
-        }
-        .padding()
+      // Data summary
+      dataSummaryView
     }
-    
-    // MARK: - Line Chart
-    private var lineChartView: some View {
-    let processedData: [LineChartItem] = aggregateDataForLineChart()
+    .padding()
+  }
+
+  // MARK: - Line Chart
+  private var lineChartView: some View {
+    let processedData = aggregateDataForLineChart()
     let xLabel: String = chartData.xLabel ?? "X"
     let yLabel: String = chartData.yLabel ?? "Y"
-    
-    print("📊 [LineChart] Rendering chart with \(processedData.count) points")
-    if let first = processedData.first, let last = processedData.last {
-      print("📊 [LineChart] X range: \(first.xValue) to \(last.xValue)")
-      print("📊 [LineChart] Y range: \(first.yValue) to \(last.yValue)")
-    }
-    
-    return Chart(processedData) { item in
-                    LineMark(
-        x: .value(xLabel, item.xValue),
-        y: .value(yLabel, item.yValue)
-                    )
-                    .foregroundStyle(.blue)
-                    .symbol(.circle)
-      .symbolSize(50)
+
+    return Chart {
+      ForEach(Array(processedData.enumerated()), id: \.offset) { index, item in
+        LineMark(
+          x: .value(xLabel, item.xValue),
+          y: .value(yLabel, item.yValue)
+        )
+        .foregroundStyle(.blue)
+        .symbol(.circle)
+      }
     }
     .chartXAxisLabel(xLabel)
     .chartYAxisLabel(yLabel)
@@ -244,35 +228,35 @@ struct ChartVisualizationView: View {
     .cornerRadius(6)
     }
 
-    // MARK: - Data Summary
-    private var dataSummaryView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // AI Reasoning Display (from chat-interface)
-            Text(chartData.reasoning)
-                .font(.caption)
-                .foregroundColor(.primary)
-                .multilineTextAlignment(.leading)
+  // MARK: - Data Summary
+  private var dataSummaryView: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      // AI Reasoning Display (from chat-interface)
+      Text(chartData.reasoning)
+        .font(.caption)
+        .foregroundColor(.primary)
+        .multilineTextAlignment(.leading)
 
-            // Data Info (from main branch)
-            Text("Data Summary")
-                .font(.headline)
+      // Data Info (from main branch)
+      Text("Data Summary")
+        .font(.headline)
 
-            HStack {
-                Label("\(chartData.dataPoints.count) data points", systemImage: "number.circle")
-                Spacer()
-                if let originalData = chartData.originalData as? [String: Any],
+      HStack {
+        Label("\(chartData.dataPoints.count) data points", systemImage: "number.circle")
+        Spacer()
+        if let originalData = chartData.originalData as? [String: Any],
           let shape = originalData["shape"] as? [Int]
         {
-                    Label("\(shape[0]) rows × \(shape[1]) columns", systemImage: "tablecells")
-                }
-            }
-            .font(.caption)
-            .foregroundColor(.secondary)
+          Label("\(shape[0]) rows × \(shape[1]) columns", systemImage: "tablecells")
         }
-        .padding()
-    .background(Color(.windowBackgroundColor))
-        .cornerRadius(8)
+      }
+      .font(.caption)
+      .foregroundColor(.secondary)
     }
+    .padding()
+    .background(Color(.windowBackgroundColor))
+    .cornerRadius(8)
+  }
 }
 
 // MARK: - Helper Functions

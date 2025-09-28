@@ -8,6 +8,9 @@ from config import OPENAI_API_KEY
 
 class DataAnalyzer:
     def __init__(self):
+        print(
+            f"🔑 [DataAnalyzer] Using API key: {OPENAI_API_KEY[:12] if OPENAI_API_KEY else 'None'}...{OPENAI_API_KEY[-4:] if OPENAI_API_KEY and len(OPENAI_API_KEY) > 16 else ''}"
+        )
         self.client = OpenAI(api_key=OPENAI_API_KEY)
 
     def analyze_csv(self, file_path: str) -> Dict[str, Any]:
@@ -373,7 +376,7 @@ class DataAnalyzer:
             "title": "descriptive chart title",
             "x_label": "x-axis label",
             "y_label": "y-axis label (null if not applicable)",
-            "reasoning": "explanation of why this chart type was chosen",
+            "reasoning": "concise yet thorough explanation on why this chart type was chosen for the provided dataset",
             "data_processing": {{
                 "aggregate": "sum/mean/count/none - how to aggregate data if needed",
                 "group_by": "column to group by (null if not applicable)",
@@ -398,7 +401,31 @@ class DataAnalyzer:
                 temperature=0.1,
             )
 
-            recommendation = json.loads(response.choices[0].message.content)
+            # Debug: Check the raw response
+            raw_content = response.choices[0].message.content
+            print(
+                f"🤖 [DataAnalyzer] Raw OpenAI response length: {len(raw_content) if raw_content else 0}"
+            )
+            print(
+                f"🤖 [DataAnalyzer] Raw OpenAI response preview: {raw_content[:100] if raw_content else 'EMPTY'}"
+            )
+
+            if not raw_content or raw_content.strip() == "":
+                raise ValueError("OpenAI returned empty response")
+
+            # Strip markdown code blocks if present (OpenAI often wraps JSON in ```json ... ```)
+            clean_content = raw_content.strip()
+            if clean_content.startswith("```json"):
+                clean_content = clean_content[7:]  # Remove ```json
+            if clean_content.startswith("```"):
+                clean_content = clean_content[3:]  # Remove ```
+            if clean_content.endswith("```"):
+                clean_content = clean_content[:-3]  # Remove closing ```
+            clean_content = clean_content.strip()
+
+            print(f"🧹 [DataAnalyzer] Cleaned content preview: {clean_content[:100]}")
+
+            recommendation = json.loads(clean_content)
 
             # Validate recommendation to prevent same-axis assignments
             recommendation = self._validate_recommendation(recommendation, data_info)
@@ -714,3 +741,74 @@ class DataAnalyzer:
             fallback_data = self._clean_for_json(df.to_dict('records'))
             print(f"🚨 [DataAnalyzer] Fallback data: {len(fallback_data)} records")
             return fallback_data
+
+    def send_chat_message(self, message: str) -> str:
+        """
+        Send a chat message to OpenAI and return the response
+        """
+        try:
+            print(
+                f"💬 [DataAnalyzer] Sending chat message to OpenAI: {message[:50]}..."
+            )
+
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a helpful AI assistant for data visualization. You help users understand their data and create meaningful visualizations. Be concise and helpful.",
+                    },
+                    {"role": "user", "content": message},
+                ],
+                max_tokens=500,
+                temperature=0.7,
+            )
+
+            ai_response = response.choices[0].message.content
+            print(f"✅ [DataAnalyzer] Received OpenAI response: {ai_response[:50]}...")
+
+            return ai_response
+
+        except Exception as e:
+            print(f"❌ [DataAnalyzer] Chat error: {e}")
+            return f"Sorry, I encountered an error: {str(e)}"
+
+    def send_chat_message_with_history(self, message: str, history: list) -> str:
+        """
+        Send a chat message to OpenAI with conversation history and return the response
+        """
+        try:
+            print(
+                f"💬 [DataAnalyzer] Sending chat message with {len(history)} history items"
+            )
+
+            # Build messages array with system prompt, history, and current message
+            messages = [
+                {
+                    "role": "system",
+                    "content": "You are a helpful AI assistant for data visualization. You help users understand their data and create meaningful visualizations. Be concise and helpful.",
+                }
+            ]
+
+            # Add conversation history
+            for item in history[-10:]:  # Only last 10 messages to avoid token limits
+                messages.append({"role": item.role, "content": item.content})
+
+            # Add current message
+            messages.append({"role": "user", "content": message})
+
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=messages,
+                max_tokens=500,
+                temperature=0.7,
+            )
+
+            ai_response = response.choices[0].message.content
+            print(f"✅ [DataAnalyzer] Received OpenAI response with history context")
+
+            return ai_response
+
+        except Exception as e:
+            print(f"❌ [DataAnalyzer] Chat error with history: {e}")
+            return f"Sorry, I encountered an error: {str(e)}"

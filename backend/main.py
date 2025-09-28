@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import uvicorn
 import tempfile
 import os
@@ -19,13 +20,27 @@ app.add_middleware(
 # Initialize the data analyzer
 analyzer = DataAnalyzer()
 
+
+# Pydantic models
+class ChatHistoryItem(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
+class ChatMessage(BaseModel):
+    message: str
+    history: list[ChatHistoryItem] = []
+
+
 @app.get("/")
 def read_root():
     return {"message": "Apex Data Visualization API", "status": "running"}
 
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
 
 @app.post("/analyze-csv")
 async def analyze_csv(file: UploadFile = File(...)):
@@ -34,18 +49,22 @@ async def analyze_csv(file: UploadFile = File(...)):
     """
     print(f"📊 [Backend] Received file: {file.filename}")
 
-    if not file.filename.endswith('.csv'):
+    if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV")
 
     # Read file content
     try:
         content = await file.read()
         file_size = len(content)
-        print(f"📏 [Backend] File size: {file_size:,} bytes ({file_size/1024/1024:.1f} MB)")
+        print(
+            f"📏 [Backend] File size: {file_size:,} bytes ({file_size/1024/1024:.1f} MB)"
+        )
 
         # Log file size for monitoring (no limit - we'll handle large files intelligently)
         if file_size > 50 * 1024 * 1024:  # 50MB+
-            print(f"🐘 [Backend] Large file detected: {file_size/1024/1024:.1f}MB - using smart sampling")
+            print(
+                f"🐘 [Backend] Large file detected: {file_size/1024/1024:.1f}MB - using smart sampling"
+            )
 
     except Exception as e:
         print(f"❌ [Backend] Error reading file: {e}")
@@ -54,7 +73,7 @@ async def analyze_csv(file: UploadFile = File(...)):
     # Save uploaded file temporarily
     temp_file_path = None
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as temp_file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as temp_file:
             temp_file.write(content)
             temp_file_path = temp_file.name
 
@@ -65,7 +84,9 @@ async def analyze_csv(file: UploadFile = File(...)):
         result = analyzer.analyze_csv(temp_file_path)
 
         if not result["success"]:
-            print(f"❌ [Backend] Analysis failed: {result.get('error', 'Unknown error')}")
+            print(
+                f"❌ [Backend] Analysis failed: {result.get('error', 'Unknown error')}"
+            )
             raise HTTPException(status_code=400, detail=result["error"])
 
         print(f"✅ [Backend] Analysis completed successfully")
@@ -73,10 +94,8 @@ async def analyze_csv(file: UploadFile = File(...)):
         # Double-check for any remaining NaN values before JSON serialization
         try:
             import json
-            response_data = {
-                "filename": file.filename,
-                "analysis": result
-            }
+
+            response_data = {"filename": file.filename, "analysis": result}
 
             # Test JSON serialization to catch NaN issues early
             json.dumps(response_data)
@@ -92,8 +111,8 @@ async def analyze_csv(file: UploadFile = File(...)):
                 "filename": file.filename,
                 "analysis": {
                     "success": False,
-                    "error": f"Data contains non-JSON-serializable values: {str(json_error)}"
-                }
+                    "error": f"Data contains non-JSON-serializable values: {str(json_error)}",
+                },
             }
 
     except HTTPException:
@@ -113,6 +132,7 @@ async def analyze_csv(file: UploadFile = File(...)):
             except Exception as e:
                 print(f"⚠️ [Backend] Failed to clean up temp file: {e}")
 
+
 @app.get("/chart-types")
 def get_supported_chart_types():
     """
@@ -123,40 +143,62 @@ def get_supported_chart_types():
             {
                 "type": "line",
                 "name": "Line Chart",
-                "description": "For time series or continuous data trends"
+                "description": "For time series or continuous data trends",
             },
             {
                 "type": "bar",
-                "name": "Bar Chart", 
-                "description": "For categorical comparisons"
+                "name": "Bar Chart",
+                "description": "For categorical comparisons",
             },
             {
                 "type": "scatter",
                 "name": "Scatter Plot",
-                "description": "For correlation between two numeric variables"
+                "description": "For correlation between two numeric variables",
             },
             {
                 "type": "pie",
                 "name": "Pie Chart",
-                "description": "For proportional data (parts of a whole)"
+                "description": "For proportional data (parts of a whole)",
             },
             {
                 "type": "histogram",
                 "name": "Histogram",
-                "description": "For distribution of a single numeric variable"
+                "description": "For distribution of a single numeric variable",
             },
             {
                 "type": "box",
                 "name": "Box Plot",
-                "description": "For distribution statistics and outliers"
+                "description": "For distribution statistics and outliers",
             },
             {
                 "type": "heatmap",
                 "name": "Heatmap",
-                "description": "For correlation matrices or 2D data intensity"
-            }
+                "description": "For correlation matrices or 2D data intensity",
+            },
         ]
     }
+
+
+@app.post("/chat")
+async def chat_endpoint(chat_message: ChatMessage):
+    """
+    Handle chat messages and return OpenAI responses
+    """
+    print(f"💬 [Backend] Received chat message: {chat_message.message}")
+
+    try:
+        # Use the analyzer's OpenAI client to send chat message with history
+        response = analyzer.send_chat_message_with_history(
+            chat_message.message, chat_message.history
+        )
+        print(f"✅ [Backend] Chat response generated successfully")
+
+        return {"response": response}
+
+    except Exception as e:
+        print(f"❌ [Backend] Chat error: {e}")
+        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=False, log_level="info")
