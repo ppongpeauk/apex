@@ -1,0 +1,459 @@
+{
+  "$id": "https://example.com/schemas/visualization-decision.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VisualizationDecision",
+  "type": "object",
+  "required": ["chart", "fields", "encoding", "justification"],
+  "properties": {
+    "chart": {
+      "type": "object",
+      "required": ["type", "score"],
+      "properties": {
+        "type": { "$ref": "#/$defs/ChartType" },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "alternates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "score"],
+            "properties": {
+              "type": { "$ref": "#/$defs/ChartType" },
+              "score": { "type": "number", "minimum": 0, "maximum": 1 },
+              "why": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/FieldSpec" }
+    },
+
+    "transform": {
+      "type": "object",
+      "properties": {
+        "filter": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/FilterSpec" }
+        },
+        "derive": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DeriveSpec" }
+        },
+        "aggregate": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/AggregateSpec" }
+        },
+        "bin": { "type": "array", "items": { "$ref": "#/$defs/BinSpec" } },
+        "time_unit": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/TimeUnitSpec" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "encoding": {
+      "type": "object",
+      "properties": {
+        "x": { "$ref": "#/$defs/Channel" },
+        "y": { "$ref": "#/$defs/Channel" },
+        "color": { "$ref": "#/$defs/Channel" },
+        "size": { "$ref": "#/$defs/Channel" },
+        "shape": { "$ref": "#/$defs/Channel" },
+        "row": { "$ref": "#/$defs/FacetChannel" },
+        "column": { "$ref": "#/$defs/FacetChannel" },
+        "order": {
+          "type": "object",
+          "properties": {
+            "by": { "type": "string" },
+            "direction": { "enum": ["asc", "desc"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "justification": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "data_checks": {
+      "type": "object",
+      "properties": {
+        "missing": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "outliers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["method", "count"],
+            "properties": {
+              "method": { "type": "string" },
+              "count": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "cardinality": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "render_hints": {
+      "type": "object",
+      "properties": {
+        "x_rotation": { "type": "integer", "minimum": 0, "maximum": 90 },
+        "y_zero": { "type": "boolean" },
+        "stack": { "enum": ["none", "normal", "percent"] },
+        "label_format": { "enum": ["abbrev", "full", "percent"] },
+        "tooltip": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "profile": { "$ref": "#/$defs/DatasetProfile" },
+
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "$ref": "#/$defs/WarningCode" },
+          "message": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "errors": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+
+  "additionalProperties": false,
+
+  "$defs": {
+    "ChartType": {
+      "enum": [
+        "bar",
+        "column",
+        "line",
+        "area",
+        "scatter",
+        "histogram",
+        "boxplot",
+        "stacked_bar",
+        "diverging_stacked_bar",
+        "pie",
+        "heatmap",
+        "hexbin",
+        "geo_choropleth"
+      ]
+    },
+
+    "SemanticType": {
+      "enum": ["nominal", "ordinal", "quantitative", "temporal", "geospatial"]
+    },
+
+    "Role": {
+      "enum": [
+        "dimension",
+        "measure",
+        "time",
+        "series",
+        "geo",
+        "value",
+        "x",
+        "y"
+      ]
+    },
+
+    "AggregateOp": {
+      "enum": ["sum", "mean", "median", "min", "max", "count", "auto"]
+    },
+
+    "TimeUnit": {
+      "enum": [
+        "auto",
+        "second",
+        "minute",
+        "hour",
+        "day",
+        "week",
+        "month",
+        "quarter",
+        "year"
+      ]
+    },
+
+    "FieldSpec": {
+      "type": "object",
+      "required": ["name", "role", "type"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "$ref": "#/$defs/Role" },
+        "type": { "$ref": "#/$defs/SemanticType" },
+        "aggregate": { "$ref": "#/$defs/AggregateOp" },
+        "time_unit": { "$ref": "#/$defs/TimeUnit" },
+        "binned": { "type": "boolean" },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "Channel": {
+      "type": "object",
+      "properties": {
+        "field": { "type": "string" },
+        "aggregate": { "$ref": "#/$defs/AggregateOp" },
+        "time_unit": { "$ref": "#/$defs/TimeUnit" },
+        "bin": {
+          "oneOf": [{ "type": "boolean" }, { "$ref": "#/$defs/BinParam" }]
+        },
+        "type": { "$ref": "#/$defs/SemanticType" }
+      },
+      "additionalProperties": false
+    },
+
+    "FacetChannel": {
+      "type": "object",
+      "properties": {
+        "field": { "type": "string" },
+        "type": { "enum": ["nominal", "ordinal"] },
+        "max_columns": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+
+    "FilterSpec": {
+      "type": "object",
+      "required": ["field", "op"],
+      "properties": {
+        "field": { "type": "string" },
+        "op": {
+          "enum": [
+            "is_null",
+            "is_not_null",
+            "eq",
+            "ne",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "in",
+            "not_in",
+            "between",
+            "regex"
+          ]
+        },
+        "value": {},
+        "values": { "type": "array", "items": {} }
+      },
+      "additionalProperties": false
+    },
+
+    "DeriveSpec": {
+      "type": "object",
+      "required": ["as", "expr"],
+      "properties": {
+        "as": { "type": "string" },
+        "expr": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "AggregateSpec": {
+      "type": "object",
+      "required": ["groupby", "measures"],
+      "properties": {
+        "groupby": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "measures": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["field", "op"],
+            "properties": {
+              "field": { "type": "string" },
+              "op": { "$ref": "#/$defs/AggregateOp" },
+              "as": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "BinParam": {
+      "type": "object",
+      "properties": {
+        "strategy": { "enum": ["auto", "fd", "sturges", "scott"] },
+        "maxbins": { "type": "integer", "minimum": 1 },
+        "step": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    },
+
+    "BinSpec": {
+      "type": "object",
+      "required": ["field"],
+      "properties": {
+        "field": { "type": "string" },
+        "params": { "$ref": "#/$defs/BinParam" }
+      },
+      "additionalProperties": false
+    },
+
+    "TimeUnitSpec": {
+      "type": "object",
+      "required": ["field", "unit"],
+      "properties": {
+        "field": { "type": "string" },
+        "unit": { "$ref": "#/$defs/TimeUnit" }
+      },
+      "additionalProperties": false
+    },
+
+    "DatasetProfile": {
+      "type": "object",
+      "properties": {
+        "row_count": { "type": "integer", "minimum": 0 },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "inferred_type"],
+            "properties": {
+              "name": { "type": "string" },
+              "inferred_type": { "$ref": "#/$defs/SemanticType" },
+              "unique": { "type": "integer", "minimum": 0 },
+              "missing": { "type": "integer", "minimum": 0 },
+              "outliers": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "issues": { "type": "array", "items": { "type": "string" } },
+        "time_granularity": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/TimeUnit" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "WarningCode": {
+      "enum": [
+        "HIGH_CARDINALITY",
+        "PIE_TOO_MANY_SLICES",
+        "UNEVEN_SAMPLING",
+        "MISSING_VALUES",
+        "TOO_MANY_POINTS",
+        "JOIN_MISMATCH",
+        "AXIS_TRUNCATION"
+      ]
+    }
+  },
+
+  "examples": [
+    {
+      "chart": {
+        "type": "line",
+        "score": 0.89,
+        "alternates": [
+          {
+            "type": "bar",
+            "score": 0.62,
+            "why": "Rank by region for latest period"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "name": "date",
+          "role": "time",
+          "type": "temporal",
+          "time_unit": "week"
+        },
+        {
+          "name": "sales",
+          "role": "measure",
+          "type": "quantitative",
+          "aggregate": "sum"
+        }
+      ],
+      "transform": {
+        "aggregate": [
+          {
+            "groupby": ["date:week"],
+            "measures": [{ "field": "sales", "op": "sum", "as": "sales_sum" }]
+          }
+        ]
+      },
+      "encoding": {
+        "x": { "field": "date", "time_unit": "week", "type": "temporal" },
+        "y": { "field": "sales", "aggregate": "sum", "type": "quantitative" }
+      },
+      "assumptions": ["Weekly cadence is acceptable"],
+      "justification": "Line shows the trend of total sales over time. Weekly aggregation smooths daily noise.",
+      "data_checks": {
+        "missing": { "sales": 0 },
+        "cardinality": { "date:week": 52 }
+      },
+      "render_hints": { "y_zero": false, "tooltip": ["date", "sales_sum"] },
+      "profile": {
+        "row_count": 12743,
+        "columns": [
+          {
+            "name": "date",
+            "inferred_type": "temporal",
+            "unique": 365,
+            "missing": 0
+          },
+          {
+            "name": "sales",
+            "inferred_type": "quantitative",
+            "missing": 0,
+            "outliers": 3
+          }
+        ],
+        "issues": ["sales has 3 outliers"],
+        "time_granularity": { "date": "day" }
+      },
+      "warnings": [
+        {
+          "code": "AXIS_TRUNCATION",
+          "message": "y-axis not starting at zero; interpret slopes, not areas"
+        }
+      ],
+      "errors": []
+    }
+  ]
+}
